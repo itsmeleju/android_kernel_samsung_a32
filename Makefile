@@ -2,9 +2,9 @@
 VERSION = 4
 PATCHLEVEL = 14
 SUBLEVEL = 356
-EXTRAVERSION = -openela-vigus-AuraX
+EXTRAVERSION = -openela-rc1-vigus
 NAME = Petit Gorille
-# special thank to vigus and Samsung-MT6769-Devs
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
