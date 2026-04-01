@@ -26,6 +26,7 @@ jobs:
           git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
 
           echo "PATH=$(pwd)/clang/bin:$PATH" >> $GITHUB_ENV
+          
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
           echo "LD=ld.lld" >> $GITHUB_ENV
@@ -35,21 +36,22 @@ jobs:
           echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
           echo "STRIP=llvm-strip" >> $GITHUB_ENV
 
-      - name: Cache build
+      - name: Cache dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache
+            clang/
             out/
-          key: ${{ runner.os }}-kernel-${{ github.sha }}
+          key: ${{ runner.os }}-clang-${{ hashFiles('**/main.yml') }}
 
       - name: Configure kernel
         run: |
-          make ARCH=arm64 LLVM=1 a32_noobie_defconfig
+          make ARCH=arm64 LLVM=1 O=out a32_noobie_defconfig
 
       - name: Build kernel
         run: |
-          make -j$(nproc) ARCH=arm64 LLVM=1 LLVM_IAS=1
+          make -j$(nproc) ARCH=arm64 LLVM=1 O=out
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
