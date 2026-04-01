@@ -35,6 +35,9 @@ jobs:
           echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
           echo "STRIP=llvm-strip" >> $GITHUB_ENV
 
+      - name: Cache build
+        uses: actions/cache@v4
+        with:
           path: |
             ~/.cache
             out/
