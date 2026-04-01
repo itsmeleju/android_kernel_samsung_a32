@@ -31,14 +31,15 @@ jobs:
     - name: Configure kernel
       shell: bash
       run: |
-        export KCFLAGS="-O2 -pipe -Wno-unused-variable -Wno-sign-compare"
+        export KCFLAGS="-w -O2 -pipe"
         make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out a32_noobie_defconfig
 
     # ✅ FIX 2: force correct assembler + full clang usage
+    #  export KCFLAGS="-O2 -pipe -Wno-unused-variable -Wno-sign-compare"
     - name: Build kernel
       shell: bash
       run: |
-        export KCFLAGS="-O2 -pipe -Wno-unused-variable -Wno-sign-compare"
+        export KCFLAGS="-w -O2 -pipe" 
         make -j$(nproc) \
           ARCH=arm64 \
           CC=clang \
