@@ -26,26 +26,24 @@ runs:
     - name: Set Clang environment
       shell: bash
       run: |
-        echo "PATH=$(pwd)/clang/bin:$PATH" >> $GITHUB_ENV
+        echo "CLANG=$(pwd)/clang/bin" >> $GITHUB_ENV
 
-        echo "CC=clang" >> $GITHUB_ENV
-        echo "CXX=clang++" >> $GITHUB_ENV
-        echo "LD=ld.lld" >> $GITHUB_ENV
-        echo "AR=llvm-ar" >> $GITHUB_ENV
-        echo "NM=llvm-nm" >> $GITHUB_ENV
-        echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
-        echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
-        echo "STRIP=llvm-strip" >> $GITHUB_ENV
+        echo "ARCH=arm64" >> $GITHUB_ENV
+        echo "CC=$(pwd)/clang/bin/clang" >> $GITHUB_ENV
+        echo "LD=$(pwd)/clang/bin/ld.lld" >> $GITHUB_ENV
+
+        echo "CROSS_COMPILE=$(pwd)/clang/bin/aarch64-linux-gnu-" >> $GITHUB_ENV
+        echo "CROSS_COMPILE_ARM32=$(pwd)/clang/bin/arm-linux-gnueabi-" >> $GITHUB_ENV
+
+        echo "OBJCOPY=$(pwd)/clang/bin/llvm-objcopy" >> $GITHUB_ENV
+        echo "STRIP=$(pwd)/clang/bin/llvm-strip" >> $GITHUB_ENV
+        echo "NM=$(pwd)/clang/bin/llvm-nm" >> $GITHUB_ENV
+        echo "OBJDUMP=$(pwd)/clang/bin/llvm-objdump" >> $GITHUB_ENV
+        echo "READELF=$(pwd)/clang/bin/llvm-readelf" >> $GITHUB_ENV
 
         # 🔥 CRITICAL FIX
-        echo "LLVM=1" >> $GITHUB_ENV
-        echo "LLVM_IAS=1" >> $GITHUB_ENV
-
-    - name: Force correct assembler usage
-      shell: bash
-      run: |
-        unset AS
-        unset CROSS_COMPILE_AS
+        # echo "LLVM=1" >> $GITHUB_ENV
+        # echo "LLVM_IAS=1" >> $GITHUB_ENV
 
     - name: Debug toolchain (VERY IMPORTANT)
       shell: bash
