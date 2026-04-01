@@ -40,10 +40,8 @@ runs:
         echo "NM=$(pwd)/clang/bin/llvm-nm" >> $GITHUB_ENV
         echo "OBJDUMP=$(pwd)/clang/bin/llvm-objdump" >> $GITHUB_ENV
         echo "READELF=$(pwd)/clang/bin/llvm-readelf" >> $GITHUB_ENV
-
-        # 🔥 CRITICAL FIX
-        # echo "LLVM=1" >> $GITHUB_ENV
-        # echo "LLVM_IAS=1" >> $GITHUB_ENV
+        echo "LLVM=1" >> $GITHUB_ENV
+        echo "LLVM_IAS=1" >> $GITHUB_ENV
 
     - name: Debug toolchain (VERY IMPORTANT)
       shell: bash
