@@ -1,10 +1,11 @@
 name: A32 Kernel Builder by itsmeleju
+
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-      - mtk-performa  # your branch
+      - mtk-performa
 
 jobs:
   build:
@@ -26,19 +27,27 @@ jobs:
     - name: Setup build environment
       uses: ./.github/actions/setup-clang
 
+    # ✅ FIX 1: safer flags + no -w
     - name: Configure kernel
-      run: |
-        export KCFLAGS="-w -O2 -pipe"
-        export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
-        make ARCH=arm64 LLVM=1 O=out a32_noobie_defconfig
       shell: bash
+      run: |
+        export KCFLAGS="-O2 -pipe -Wno-unused-variable -Wno-sign-compare"
+        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out a32_noobie_defconfig
 
+    # ✅ FIX 2: force correct assembler + full clang usage
     - name: Build kernel
-      run: |
-        export KCFLAGS="-w -O2 -pipe"
-        export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
-        make -j$(nproc) ARCH=arm64 LLVM=1 O=out
       shell: bash
+      run: |
+        export KCFLAGS="-O2 -pipe -Wno-unused-variable -Wno-sign-compare"
+        make -j$(nproc) \
+          ARCH=arm64 \
+          CC=clang \
+          LLVM=1 \
+          LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-android- \
+          CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+          O=out
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
