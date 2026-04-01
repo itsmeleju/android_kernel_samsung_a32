@@ -31,7 +31,7 @@ jobs:
     - name: Configure kernel
       shell: bash
       run: |
-        export KCFLAGS="-w -O2 -pipe"
+        export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
         export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         make ARCH=arm64 O=out a32_noobie_defconfig
 
@@ -40,6 +40,8 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
+        export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
+        export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         make -j$(nproc) \
           O=out \
           ARCH=arm64 \
