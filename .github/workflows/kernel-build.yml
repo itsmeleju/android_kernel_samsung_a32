@@ -43,7 +43,7 @@ jobs:
             ~/.cache
             clang/
             out/
-          key: ${{ runner.os }}-clang-${{ hashFiles('**/main.yml') }}
+          key: ${{ runner.os }}-clang-${{ hashFiles('**kernel-build.yml') }}
 
       - name: Configure kernel
         run: |
