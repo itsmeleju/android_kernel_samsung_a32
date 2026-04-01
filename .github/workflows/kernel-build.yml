@@ -1,60 +1,45 @@
-name: Kernel Builder by itsmeleju
-
+name: A32 Kernel Builder by itsmeleju
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+      - mtk-performa  # your branch
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+    - name: Checkout source
+      uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            build-essential bc bison flex libssl-dev \
-            libncurses-dev libelf-dev wget
+    - name: Cache kernel build and Clang
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache
+          out/
+          clang/
+        key: ${{ runner.os }}-kernel-${{ github.sha }}
 
-      - name: Set up Clang toolchain
-        run: |
-          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
+    - name: Setup build environment
+      uses: ./github/actions/setup-clang
 
-          echo "PATH=$(pwd)/clang/bin:$PATH" >> $GITHUB_ENV
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
-          echo "LD=ld.lld" >> $GITHUB_ENV
-          echo "AR=llvm-ar" >> $GITHUB_ENV
-          echo "NM=llvm-nm" >> $GITHUB_ENV
-          echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
-          echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
-          echo "STRIP=llvm-strip" >> $GITHUB_ENV
+    - name: Configure kernel
+      shell: bash
+      run: |
+        make ARCH=arm64 LLVM=1 O=out a32_noobie_defconfig
 
-      - name: Cache build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache
-            out/
-          key: ${{ runner.os }}-kernel-${{ github.sha }}
+    - name: Build kernel
+      shell: bash
+      run: |
+        make -j$(nproc) ARCH=arm64 LLVM=1 O=out
 
-      - name: Configure kernel
-        run: |
-          make ARCH=arm64 LLVM=1 a32_noobie_defconfig
-
-      - name: Build kernel
-        run: |
-          make -j$(nproc) ARCH=arm64 LLVM=1 LLVM_IAS=1
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-build
-          path: |
-            arch/arm64/boot/Image
-            arch/arm64/boot/dts/
+    - name: Upload kernel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-build
+        path: |
+          out/arch/arm64/boot/Image
+          out/arch/arm64/boot/dts/
