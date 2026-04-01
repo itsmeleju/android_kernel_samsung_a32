@@ -24,7 +24,7 @@ jobs:
         key: ${{ runner.os }}-kernel-${{ github.sha }}
 
     - name: Setup build environment
-      uses: ./github/actions/setup-clang
+      uses: ./actions/setup-clang
 
     - name: Configure kernel
       shell: bash
