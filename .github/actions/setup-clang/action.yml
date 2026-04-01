@@ -9,13 +9,13 @@ runs:
       run: |
         sudo apt update
         sudo apt install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev wget clang lld
-    - name: Download prebuilt Clang
+    - name: Download AOSP Clang 14
       shell: bash
       run: |
         if [ ! -d clang ]; then
-        wget -q https://github.com/ZyCromerZ/Clang/releases/download/15.0.7-20260208-release/Clang-15.0.7-20260208.tar.gz
-        tar -xzf Clang-15.0.7-20260208.tar.gz
-        mv Clang-* clang
+        git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+        --depth=1 -b android13-release clang-aosp
+        mv clang-aosp/clang-r450784d clang
         fi
 
     - name: Set Clang environment
