@@ -9,12 +9,13 @@ runs:
       run: |
         sudo apt update
         sudo apt install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev wget clang lld
-
-    - name: Clone Clang prebuilts
+    - name: Download prebuilt Clang
       shell: bash
       run: |
         if [ ! -d clang ]; then
-          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
+        wget -q https://github.com/ZyCromerZ/Clang/releases/download/15.0.7-20260208-release/Clang-15.0.7-20260208.tar.gz
+        tar -xzf Clang-15.0.7-20260208.tar.gz
+        mv Clang-* clang
         fi
 
     - name: Set Clang environment
