@@ -4,24 +4,30 @@ description: "Installs dependencies and Clang for MTK kernel build"
 runs:
   using: "composite"
   steps:
+
     - name: Install dependencies
       shell: bash
       run: |
         sudo apt update
-        sudo apt install -y build-essential bc bison flex libssl-dev libncurses-dev libelf-dev wget clang lld
+        sudo apt install -y \
+          bc bison flex libssl-dev libncurses-dev libelf-dev wget git
+
+    # ❗ removed: clang lld (IMPORTANT)
+
     - name: Download AOSP Clang 14
       shell: bash
       run: |
         if [ ! -d clang ]; then
-        git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
-        --depth=1 -b android13-release clang-aosp
-        mv clang-aosp/clang-r450784d clang
+          git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+            --depth=1 -b android13-release clang-aosp
+          mv clang-aosp/clang-r450784d clang
         fi
 
     - name: Set Clang environment
       shell: bash
       run: |
         echo "PATH=$(pwd)/clang/bin:$PATH" >> $GITHUB_ENV
+
         echo "CC=clang" >> $GITHUB_ENV
         echo "CXX=clang++" >> $GITHUB_ENV
         echo "LD=ld.lld" >> $GITHUB_ENV
@@ -30,3 +36,21 @@ runs:
         echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
         echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
         echo "STRIP=llvm-strip" >> $GITHUB_ENV
+
+        # 🔥 CRITICAL FIX
+        echo "LLVM=1" >> $GITHUB_ENV
+        echo "LLVM_IAS=1" >> $GITHUB_ENV
+
+    - name: Force correct assembler usage
+      shell: bash
+      run: |
+        unset AS
+        unset CROSS_COMPILE_AS
+
+    - name: Debug toolchain (VERY IMPORTANT)
+      shell: bash
+      run: |
+        echo "Checking toolchain..."
+        which clang
+        clang --version
+        which as || true
