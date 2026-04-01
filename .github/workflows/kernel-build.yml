@@ -40,11 +40,15 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        export KCFLAGS="-w -O2 -pipe" 
-        export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         make -j$(nproc) \
+          O=out \
           ARCH=arm64 \
-          O=out
+          CC=clang \
+          LLVM=1 \
+          LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-android- \
+          CROSS_COMPILE_ARM32=arm-linux-androideabi-
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
