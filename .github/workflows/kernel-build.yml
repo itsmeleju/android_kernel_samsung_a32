@@ -1,0 +1,55 @@
+name: A32 Kernel Builder by itsmeleju
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - mtk-performa
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Cache kernel build and Clang
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache
+          out/
+          clang/
+        key: ${{ runner.os }}-kernel-${{ github.sha }}
+
+    - name: Setup build environment
+      uses: ./.github/actions/setup-clang
+
+    - name: Configure kernel
+      run: |
+          make ARCH=arm64 O=out a32_noobie_defconfig
+
+    - name: Build kernel
+      shell: bash
+      run: |
+        export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
+        export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+        make -j$(nproc) O=out \
+          ARCH=arm64 \
+          CC=clang \
+          LD=ld.lld \
+          LLVM=1 \
+          LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-gnu- \
+          CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-build
+        path: |
+          out/arch/arm64/boot/Image
+          out/arch/arm64/boot/dts/
