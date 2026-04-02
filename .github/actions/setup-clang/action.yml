@@ -4,49 +4,29 @@ description: "Installs dependencies and Clang for MTK kernel build"
 runs:
   using: "composite"
   steps:
-
     - name: Install dependencies
       shell: bash
       run: |
         sudo apt update
-        sudo apt install -y \
-          bc bison flex libssl-dev libncurses-dev libelf-dev wget git
+        sudo apt install -y bc bison flex libssl-dev libncurses-dev libelf-dev wget git make python3
 
-    # ❗ removed: clang lld (IMPORTANT)
-
-    - name: Download AOSP Clang 14
+    - name: Download AOSP Clang
       shell: bash
       run: |
-        if [ ! -d clang ]; then
+        if [ ! -d "clang" ]; then
           git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
-            --depth=1 -b android13-release clang-aosp
-          mv clang-aosp/clang-r450784d clang
+            --depth=1 -b master clang-bin
+          # Using r450784d as requested
+          mv clang-bin/clang-r450784d clang
         fi
 
-    - name: Set Clang environment
+    - name: Set Environment
       shell: bash
       run: |
-        echo "CLANG=$(pwd)/clang/bin" >> $GITHUB_ENV
-
+        # Add Clang bin to PATH so 'make' finds 'clang' and 'ld.lld' automatically
+        echo "$(pwd)/clang/bin" >> $GITHUB_PATH
+        
+        # Set core variables
         echo "ARCH=arm64" >> $GITHUB_ENV
-        echo "CC=$(pwd)/clang/bin/clang" >> $GITHUB_ENV
-        echo "LD=$(pwd)/clang/bin/ld.lld" >> $GITHUB_ENV
-
-        echo "CROSS_COMPILE=$(pwd)/clang/bin/aarch64-linux-gnu-" >> $GITHUB_ENV
-        echo "CROSS_COMPILE_ARM32=$(pwd)/clang/bin/arm-linux-gnueabi-" >> $GITHUB_ENV
-
-        echo "OBJCOPY=$(pwd)/clang/bin/llvm-objcopy" >> $GITHUB_ENV
-        echo "STRIP=$(pwd)/clang/bin/llvm-strip" >> $GITHUB_ENV
-        echo "NM=$(pwd)/clang/bin/llvm-nm" >> $GITHUB_ENV
-        echo "OBJDUMP=$(pwd)/clang/bin/llvm-objdump" >> $GITHUB_ENV
-        echo "READELF=$(pwd)/clang/bin/llvm-readelf" >> $GITHUB_ENV
-        echo "LLVM=1" >> $GITHUB_ENV
-        echo "LLVM_IAS=1" >> $GITHUB_ENV
-
-    - name: Debug toolchain (VERY IMPORTANT)
-      shell: bash
-      run: |
-        echo "Checking toolchain..."
-        which clang
-        clang --version
-        which as || true
+        echo "SUBARCH=arm64" >> $GITHUB_ENV
+        echo "OS=linux" >> $GITHUB_ENV
