@@ -10,15 +10,18 @@ runs:
         sudo apt update
         sudo apt install -y bc bison flex libssl-dev libncurses-dev libelf-dev wget git make python3
 
-    - name: Download AOSP Clang
+    - name: Download and Extract ZyC Clang
       shell: bash
       run: |
-        if [ ! -d "clang" ]; then
-          git clone https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
-            --depth=1 -b master clang-bin
-          # Using r450784d as requested
-          mv clang-bin/clang-r450784d clang
-        fi
+       if [ ! -d "clang" ]; then
+       echo "[*] Downloading Clang..."
+       wget -q https://github.com/ZyCromerZ/Clang/releases/download/14.0.6-20220724-release/Clang-14.0.6-20220724.tar.gz -O clang.tar.gz
+       echo "[*] Extracting..."
+       mkdir -p clang
+       tar -xf clang.tar.gz -C clang --strip-components=1  # Extract directly into the 'clang' folder
+       echo "[*] Cleaning up archive..."
+       rm clang.tar.gz
+       fi
 
     - name: Set Environment
       shell: bash
