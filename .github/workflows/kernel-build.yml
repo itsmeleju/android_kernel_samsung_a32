@@ -35,25 +35,30 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # 1. Fix Permissions (Crucial!)
-        # The extracted .tar.gz doesn't have the 'execute' bit set by default.
-        chmod -R +x ${{ github.workspace }}/clang
+        # 1. Fix Permissions for the entire toolchain
+        # We use 777 here to be absolutely sure every sub-process can execute
+        chmod -R 777 ${{ github.workspace }}/clang
         
         # 2. Setup absolute paths
         CLANG_BIN="${{ github.workspace }}/clang"
         export PATH="$CLANG_BIN:$PATH"
         
-        # 3. Clean any 'stale' headers from previous failed runs
-        mkdir -p out
-        make ARCH=arm64 O=out mrproper
-        
-        # 4. Optimization & Warning suppression
+        # 3. Optimization & Warning suppression
         export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
         export KCPPFLAGS="-O2"
         export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         
-        # 5. The Build Command
-        # Passing ARCH=arm64 directly solves the 'asm/bug.h' issue.
+        # 4. Preparation (Clean -> Config -> Update)
+        mkdir -p out
+        
+        echo "[*] Cleaning and generating .config..."
+        make ARCH=arm64 O=out a32_noobie_defconfig
+        
+        echo "[*] Handling new config symbols (KernelSU etc)..."
+        make ARCH=arm64 O=out olddefconfig
+        
+        # 5. The Main Build Command
+        echo "[*] Starting compilation..."
         make -j$(nproc) O=out \
           ARCH=arm64 \
           CC=clang \
