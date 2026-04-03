@@ -27,28 +27,28 @@ jobs:
     - name: Setup build environment
       uses: ./.github/actions/setup-clang
 
-    # WE REMOVE THE SEPARATE "Configure kernel" STEP AND MERGE IT INTO THE BUILD STEP
     - name: Build kernel
       shell: bash
       run: |
-        # 1. MOVE TOOLCHAIN TO A NEW HOME (To break cache locks)
-        echo "[*] Migrating toolchain to avoid cache locks..."
-        mkdir -p ${{ github.workspace }}/toolchain
-        cp -af ${{ github.workspace }}/clang/* ${{ github.workspace }}/toolchain/
+        # 1. DEFINE AND VERIFY DIRECTORIES
+        # If you used 'git clone ... clang', the binaries are in 'clang/bin'
+        TC_DIR="${{ github.workspace }}/clang/bin"
         
-        # 2. FORCE PERMISSIONS ON THE NEW DIRECTORY
-        echo "[*] Forcing permissions on new toolchain path..."
-        chmod -R 777 ${{ github.workspace }}/toolchain
-        find ${{ github.workspace }}/toolchain -type f -exec chmod +x {} +
+        # Check if the compiler actually exists at this path
+        if [ ! -f "$TC_DIR/clang" ]; then
+          echo "ERROR: Clang not found at $TC_DIR/clang"
+          echo "Searching for clang location..."
+          find ${{ github.workspace }}/clang -name clang
+          exit 1
+        fi
+
+        # 2. FIX PERMISSIONS
+        chmod -R +x ${{ github.workspace }}/clang/bin
         
-        # 3. SET ABSOLUTE PATHS TO THE NEW HOME
-        export TC_DIR="${{ github.workspace }}/toolchain"
-        export PATH="$TC_DIR:$PATH"
-        
-        # 4. PREPARE OUTPUT
+        # 3. PREPARE OUTPUT
         mkdir -p out
-        
-        # 5. CONFIGURATION
+
+        # 4. CONFIGURATION
         echo "[*] Generating defconfig..."
         make -j$(nproc) O=out ARCH=arm64 \
             CC="$TC_DIR/clang" \
@@ -63,7 +63,7 @@ jobs:
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             olddefconfig
 
-        # 6. THE MAIN BUILD
+        # 5. MAIN BUILD
         echo "[*] Starting Final Compilation..."
         make -j$(nproc) O=out \
             ARCH=arm64 \
@@ -80,8 +80,7 @@ jobs:
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             CLANG_TRIPLE=aarch64-linux-gnu- \
-            KCFLAGS="-w -O2 -pipe -Wno-int-conversion" \
-            KCPPFLAGS="-O2"
+            KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
           
     - name: Upload Kernel Image and DTB
       if: success()
