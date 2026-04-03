@@ -31,37 +31,39 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # 1. THE PERMISSION CRUSHER
-        # We must do this before ANY make command runs
-        echo "[*] Forcing permissions on toolchain..."
-        find ${{ github.workspace }}/clang -type f -exec chmod 777 {} +
+        # 1. MOVE TOOLCHAIN TO A NEW HOME (To break cache locks)
+        echo "[*] Migrating toolchain to avoid cache locks..."
+        mkdir -p ${{ github.workspace }}/toolchain
+        cp -af ${{ github.workspace }}/clang/* ${{ github.workspace }}/toolchain/
         
-        # 2. DEFINE ABSOLUTE PATHS
-        export TC_DIR="${{ github.workspace }}/clang"
-        # We add the root AND the bin folder just in case
-        export PATH="$TC_DIR:$TC_DIR/bin:$PATH"
+        # 2. FORCE PERMISSIONS ON THE NEW DIRECTORY
+        echo "[*] Forcing permissions on new toolchain path..."
+        chmod -R 777 ${{ github.workspace }}/toolchain
+        find ${{ github.workspace }}/toolchain -type f -exec chmod +x {} +
         
-        # 3. PREPARE OUTPUT
+        # 3. SET ABSOLUTE PATHS TO THE NEW HOME
+        export TC_DIR="${{ github.workspace }}/toolchain"
+        export PATH="$TC_DIR:$PATH"
+        
+        # 4. PREPARE OUTPUT
         mkdir -p out
         
-        # 4. CONFIGURATION (MUST be done here after chmod)
+        # 5. CONFIGURATION
         echo "[*] Generating defconfig..."
         make -j$(nproc) O=out ARCH=arm64 \
             CC="$TC_DIR/clang" \
-            LD="$TC_DIR/ld.lld" \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             a32_noobie_defconfig
 
-        echo "[*] Applying olddefconfig (Handling KernelSU)..."
+        echo "[*] Applying olddefconfig..."
         make -j$(nproc) O=out ARCH=arm64 \
             CC="$TC_DIR/clang" \
-            LD="$TC_DIR/ld.lld" \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             olddefconfig
 
-        # 5. THE MAIN BUILD
+        # 6. THE MAIN BUILD
         echo "[*] Starting Final Compilation..."
         make -j$(nproc) O=out \
             ARCH=arm64 \
