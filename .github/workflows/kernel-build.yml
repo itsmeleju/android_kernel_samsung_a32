@@ -36,19 +36,24 @@ jobs:
       shell: bash
       run: |
         # 1. Fix Permissions (Crucial!)
+        # The extracted .tar.gz doesn't have the 'execute' bit set by default.
         chmod -R +x ${{ github.workspace }}/clang
         
-        # 2. Setup Paths
+        # 2. Setup absolute paths
         CLANG_BIN="${{ github.workspace }}/clang"
         export PATH="$CLANG_BIN:$PATH"
         
-        # 3. Optimization & Safety Flags
+        # 3. Clean any 'stale' headers from previous failed runs
+        mkdir -p out
+        make ARCH=arm64 O=out mrproper
+        
+        # 4. Optimization & Warning suppression
         export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
         export KCPPFLAGS="-O2"
         export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         
-        # 4. The Build Command
-        # Note: We pass ARCH and CROSS_COMPILE here to ensure headers like asm/bug.h are found
+        # 5. The Build Command
+        # Passing ARCH=arm64 directly solves the 'asm/bug.h' issue.
         make -j$(nproc) O=out \
           ARCH=arm64 \
           CC=clang \
