@@ -35,16 +35,15 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # Define the absolute path to your downloaded clang bin
-        CLANG_BIN="${{ github.workspace }}/clang/bin"
+        # Based on your logs, the files are in 'clang/', not 'clang/bin/'
+        CLANG_BIN="${{ github.workspace }}/clang"
         
-        # Add it to the FRONT of the PATH so 'ld.lld' is found first
+        # Add it to the PATH
         export PATH="$CLANG_BIN:$PATH"
         
-        # Verify the tool exists before starting (for your logs)
+        # Verify - this should now pass
         if [ ! -f "$CLANG_BIN/ld.lld" ]; then
-          echo "ERROR: ld.lld not found in $CLANG_BIN"
-          ls -R "${{ github.workspace }}/clang" # Help us see where it actually is
+          echo "ERROR: ld.lld still not found!"
           exit 1
         fi
 
