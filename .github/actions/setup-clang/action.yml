@@ -10,16 +10,15 @@ runs:
         sudo apt update
         sudo apt install -y bc bison flex libssl-dev libncurses-dev libelf-dev wget git make python3
 
-    - name: Download and Extract ZyC Clang
+    - name: Download Proton Clang
       shell: bash
       run: |
         if [ ! -d "clang" ]; then
-          echo "[*] Downloading Clang..."
-          wget -q https://github.com/ZyCromerZ/Clang/releases/download/14.0.6-20220724-release/Clang-14.0.6-20220724.tar.gz -O clang.tar.gz
-          echo "[*] Extracting..."
-          mkdir -p clang
-          tar -xf clang.tar.gz -C clang --strip-components=1
-          rm clang.tar.gz
+          echo "[*] Downloading Proton Clang..."
+          # Proton Clang is highly compatible with Android Kernel builds
+          git clone https://github.com/kdrag0n/proton-clang.git --depth=1 clang
+          # Force permissions immediately
+          chmod -R +x clang/bin
         fi
 
     - name: Set Environment
