@@ -26,14 +26,12 @@ runs:
       shell: bash
       run: |
         # 1. Force PATH priority for our downloaded Clang
-        echo "$(pwd)/clang/bin" >> $GITHUB_PATH
-        
+        echo "${{ github.workspace }}/clang/bin" >> $GITHUB_PATH
         # 2. Force LLVM variables (This stops the fallback to /usr/bin/as)
         echo "ARCH=arm64" >> $GITHUB_ENV
         echo "SUBARCH=arm64" >> $GITHUB_ENV
         echo "LLVM=1" >> $GITHUB_ENV
         echo "LLVM_IAS=1" >> $GITHUB_ENV
-        
         # 3. Define Toolchain Names
         echo "CC=clang" >> $GITHUB_ENV
         echo "LD=ld.lld" >> $GITHUB_ENV
