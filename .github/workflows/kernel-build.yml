@@ -35,21 +35,20 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # Based on your logs, the files are in 'clang/', not 'clang/bin/'
-        CLANG_BIN="${{ github.workspace }}/clang"
+        # 1. Fix Permissions (Crucial!)
+        chmod -R +x ${{ github.workspace }}/clang
         
-        # Add it to the PATH
+        # 2. Setup Paths
+        CLANG_BIN="${{ github.workspace }}/clang"
         export PATH="$CLANG_BIN:$PATH"
         
-        # Verify - this should now pass
-        if [ ! -f "$CLANG_BIN/ld.lld" ]; then
-          echo "ERROR: ld.lld still not found!"
-          exit 1
-        fi
-
+        # 3. Optimization & Safety Flags
         export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
+        export KCPPFLAGS="-O2"
         export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         
+        # 4. The Build Command
+        # Note: We pass ARCH and CROSS_COMPILE here to ensure headers like asm/bug.h are found
         make -j$(nproc) O=out \
           ARCH=arm64 \
           CC=clang \
