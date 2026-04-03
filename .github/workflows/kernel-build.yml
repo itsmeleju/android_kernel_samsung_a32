@@ -35,45 +35,46 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # 1. Fix Permissions for the entire toolchain
-        # We use 777 here to be absolutely sure every sub-process can execute
+        # 1. Force extreme permissions on the toolchain
         chmod -R 777 ${{ github.workspace }}/clang
         
-        # 2. Setup absolute paths
-        CLANG_BIN="${{ github.workspace }}/clang"
-        export PATH="$CLANG_BIN:$PATH"
+        # 2. Define the absolute path to your binaries
+        # Based on your previous logs, they are in the root 'clang' folder
+        TC_PATH="${{ github.workspace }}/clang"
         
-        # 3. Optimization & Warning suppression
-        export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
-        export KCPPFLAGS="-O2"
-        export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
-        
-        # 4. Preparation (Clean -> Config -> Update)
+        # 3. Create output directory
         mkdir -p out
-        
-        echo "[*] Cleaning and generating .config..."
-        make ARCH=arm64 O=out a32_noobie_defconfig
-        
-        echo "[*] Handling new config symbols (KernelSU etc)..."
-        make ARCH=arm64 O=out olddefconfig
-        
-        # 5. The Main Build Command
-        echo "[*] Starting compilation..."
+
+        # 4. Preparation (Defconfig & Olddefconfig)
+        # We pass the absolute path to CC here so the config stage works
+        make -j$(nproc) O=out ARCH=arm64 \
+            CC="$TC_PATH/clang" \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            a32_noobie_defconfig
+            
+        make -j$(nproc) O=out ARCH=arm64 \
+            CC="$TC_PATH/clang" \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            olddefconfig
+
+        # 5. Main Build
+        # We define every tool with its FULL ABSOLUTE PATH to bypass 'not found' errors
         make -j$(nproc) O=out \
           ARCH=arm64 \
-          CC=clang \
-          LD=ld.lld \
-          AR=llvm-ar \
-          NM=llvm-nm \
-          OBJCOPY=llvm-objcopy \
-          OBJDUMP=llvm-objdump \
-          READELF=llvm-readelf \
-          STRIP=llvm-strip \
+          CC="$TC_PATH/clang" \
+          LD="$TC_PATH/ld.lld" \
+          AR="$TC_PATH/llvm-ar" \
+          NM="$TC_PATH/llvm-nm" \
+          OBJCOPY="$TC_PATH/llvm-objcopy" \
+          OBJDUMP="$TC_PATH/llvm-objdump" \
+          READELF="$TC_PATH/llvm-readelf" \
+          STRIP="$TC_PATH/llvm-strip" \
           LLVM=1 \
           LLVM_IAS=1 \
-          CROSS_COMPILE=aarch64-linux-gnu- \
-          CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-          CLANG_TRIPLE=aarch64-linux-gnu-
+          CROSS_COMPILE="$TC_PATH/aarch64-linux-gnu-" \
+          CROSS_COMPILE_ARM32="$TC_PATH/arm-linux-gnueabi-" \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
           
     - name: Upload Kernel Image and DTB
       if: success()
