@@ -35,6 +35,8 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
+        # Add the clang bin to the local PATH just to be safe
+        export PATH="${{ github.workspace }}/clang/bin:$PATH"
         # Set optimization and warning flags
         export KCFLAGS="-w -O3 -pipe -Wno-int-conversion"
         export KCPPFLAGS="-O3"
@@ -43,8 +45,6 @@ jobs:
         # Build using the environment variables set by your setup-clang action
         make -j$(nproc) O=out \
           ARCH=arm64 \
-          CC=clang \
-          LD=ld.lld \
           LLVM=1 \
           LLVM_IAS=1 \
           CROSS_COMPILE=aarch64-linux-gnu- \
