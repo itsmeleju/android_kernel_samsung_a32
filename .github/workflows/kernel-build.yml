@@ -35,46 +35,53 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # 1. Force extreme permissions on the toolchain
-        chmod -R 777 ${{ github.workspace }}/clang
+        # 1. THE PERMISSION CRUSHER
+        # We find every file in the clang folder and force execute permissions
+        echo "[*] Forcing permissions on toolchain..."
+        find ${{ github.workspace }}/clang -type f -exec chmod 777 {} +
         
-        # 2. Define the absolute path to your binaries
-        # Based on your previous logs, they are in the root 'clang' folder
-        TC_PATH="${{ github.workspace }}/clang"
+        # 2. DEFINE ABSOLUTE PATHS
+        # We point directly to the files so 'make' doesn't have to search
+        export TC_DIR="${{ github.workspace }}/clang"
+        export PATH="$TC_DIR:$PATH"
         
-        # 3. Create output directory
+        # 3. PREPARE OUTPUT
         mkdir -p out
-
-        # 4. Preparation (Defconfig & Olddefconfig)
-        # We pass the absolute path to CC here so the config stage works
+        
+        # 4. CONFIGURATION (Using Absolute CC Path)
+        echo "[*] Generating defconfig..."
         make -j$(nproc) O=out ARCH=arm64 \
-            CC="$TC_PATH/clang" \
-            CROSS_COMPILE=aarch64-linux-gnu- \
+            CC="$TC_DIR/clang" \
+            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
+            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             a32_noobie_defconfig
-            
+
+        echo "[*] Applying olddefconfig..."
         make -j$(nproc) O=out ARCH=arm64 \
-            CC="$TC_PATH/clang" \
-            CROSS_COMPILE=aarch64-linux-gnu- \
+            CC="$TC_DIR/clang" \
+            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
+            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             olddefconfig
 
-        # 5. Main Build
-        # We define every tool with its FULL ABSOLUTE PATH to bypass 'not found' errors
+        # 5. THE MAIN BUILD
+        echo "[*] Starting Final Compilation..."
         make -j$(nproc) O=out \
-          ARCH=arm64 \
-          CC="$TC_PATH/clang" \
-          LD="$TC_PATH/ld.lld" \
-          AR="$TC_PATH/llvm-ar" \
-          NM="$TC_PATH/llvm-nm" \
-          OBJCOPY="$TC_PATH/llvm-objcopy" \
-          OBJDUMP="$TC_PATH/llvm-objdump" \
-          READELF="$TC_PATH/llvm-readelf" \
-          STRIP="$TC_PATH/llvm-strip" \
-          LLVM=1 \
-          LLVM_IAS=1 \
-          CROSS_COMPILE="$TC_PATH/aarch64-linux-gnu-" \
-          CROSS_COMPILE_ARM32="$TC_PATH/arm-linux-gnueabi-" \
-          CLANG_TRIPLE=aarch64-linux-gnu- \
-          KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
+            ARCH=arm64 \
+            CC="$TC_DIR/clang" \
+            LD="$TC_DIR/ld.lld" \
+            AR="$TC_DIR/llvm-ar" \
+            NM="$TC_DIR/llvm-nm" \
+            OBJCOPY="$TC_DIR/llvm-objcopy" \
+            OBJDUMP="$TC_DIR/llvm-objdump" \
+            READELF="$TC_DIR/llvm-readelf" \
+            STRIP="$TC_DIR/llvm-strip" \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
+            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            KCFLAGS="-w -O2 -pipe -Wno-int-conversion" \
+            KCPPFLAGS="-O2"
           
     - name: Upload Kernel Image and DTB
       if: success()
