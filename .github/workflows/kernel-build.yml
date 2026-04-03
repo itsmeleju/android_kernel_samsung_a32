@@ -30,26 +30,34 @@ jobs:
     - name: Configure kernel
       run: |
           make ARCH=arm64 O=out a32_noobie_defconfig
+          make ARCH=arm64 O=out olddefconfig # IMPORTANT: Handle KernelSU/New config symbols automatically
 
     - name: Build kernel
       shell: bash
       run: |
-        export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
+        # Set optimization and warning flags
+        export KCFLAGS="-w -O3 -pipe -Wno-int-conversion"
+        export KCPPFLAGS="-O3"
         export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+        
+        # Build using the environment variables set by your setup-clang action
         make -j$(nproc) O=out \
           ARCH=arm64 \
           CC=clang \
           LD=ld.lld \
           LLVM=1 \
           LLVM_IAS=1 \
-          CLANG_TRIPLE=aarch64-linux-gnu- \
           CROSS_COMPILE=aarch64-linux-gnu- \
-          CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+          CLANG_TRIPLE=aarch64-linux-gnu-
 
-    - name: Upload build artifacts
+    - name: Upload Kernel Image and DTB
+      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: kernel-build
+        name: A32-Kernel-${{ github.run_id }}
         path: |
           out/arch/arm64/boot/Image
-          out/arch/arm64/boot/dts/
+          out/arch/arm64/boot/dtb
+          out/arch/arm64/boot/dts/mediatek/*.dtb
+        if-no-files-found: error
