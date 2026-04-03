@@ -13,23 +13,37 @@ runs:
     - name: Download and Extract ZyC Clang
       shell: bash
       run: |
-       if [ ! -d "clang" ]; then
-       echo "[*] Downloading Clang..."
-       wget -q https://github.com/ZyCromerZ/Clang/releases/download/14.0.6-20220724-release/Clang-14.0.6-20220724.tar.gz -O clang.tar.gz
-       echo "[*] Extracting..."
-       mkdir -p clang
-       tar -xf clang.tar.gz -C clang --strip-components=1  # Extract directly into the 'clang' folder
-       echo "[*] Cleaning up archive..."
-       rm clang.tar.gz
-       fi
+        if [ ! -d "clang" ]; then
+          echo "[*] Downloading Clang..."
+          wget -q https://github.com/ZyCromerZ/Clang/releases/download/14.0.6-20220724-release/Clang-14.0.6-20220724.tar.gz -O clang.tar.gz
+          echo "[*] Extracting..."
+          mkdir -p clang
+          tar -xf clang.tar.gz -C clang --strip-components=1
+          rm clang.tar.gz
+        fi
 
     - name: Set Environment
       shell: bash
       run: |
-        # Add Clang bin to PATH so 'make' finds 'clang' and 'ld.lld' automatically
+        # 1. Force PATH priority for our downloaded Clang
         echo "$(pwd)/clang/bin" >> $GITHUB_PATH
         
-        # Set core variables
+        # 2. Force LLVM variables (This stops the fallback to /usr/bin/as)
         echo "ARCH=arm64" >> $GITHUB_ENV
         echo "SUBARCH=arm64" >> $GITHUB_ENV
-        echo "OS=linux" >> $GITHUB_ENV
+        echo "LLVM=1" >> $GITHUB_ENV
+        echo "LLVM_IAS=1" >> $GITHUB_ENV
+        
+        # 3. Define Toolchain Names
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "LD=ld.lld" >> $GITHUB_ENV
+        echo "AR=llvm-ar" >> $GITHUB_ENV
+        echo "NM=llvm-nm" >> $GITHUB_ENV
+        echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
+        echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
+        echo "READELF=llvm-readelf" >> $GITHUB_ENV
+        echo "STRIP=llvm-strip" >> $GITHUB_ENV
+        
+        # 4. Cross-Compile Prefixes (match the bins in ZyC Clang)
+        echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+        echo "CROSS_COMPILE_ARM32=arm-linux-gnueabi-" >> $GITHUB_ENV
