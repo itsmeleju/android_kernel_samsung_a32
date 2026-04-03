@@ -27,38 +27,36 @@ jobs:
     - name: Setup build environment
       uses: ./.github/actions/setup-clang
 
-    - name: Configure kernel
-      run: |
-          make ARCH=arm64 O=out a32_noobie_defconfig
-          make ARCH=arm64 O=out olddefconfig # IMPORTANT: Handle KernelSU/New config symbols automatically
-
+    # WE REMOVE THE SEPARATE "Configure kernel" STEP AND MERGE IT INTO THE BUILD STEP
     - name: Build kernel
       shell: bash
       run: |
         # 1. THE PERMISSION CRUSHER
-        # We find every file in the clang folder and force execute permissions
+        # We must do this before ANY make command runs
         echo "[*] Forcing permissions on toolchain..."
         find ${{ github.workspace }}/clang -type f -exec chmod 777 {} +
         
         # 2. DEFINE ABSOLUTE PATHS
-        # We point directly to the files so 'make' doesn't have to search
         export TC_DIR="${{ github.workspace }}/clang"
-        export PATH="$TC_DIR:$PATH"
+        # We add the root AND the bin folder just in case
+        export PATH="$TC_DIR:$TC_DIR/bin:$PATH"
         
         # 3. PREPARE OUTPUT
         mkdir -p out
         
-        # 4. CONFIGURATION (Using Absolute CC Path)
+        # 4. CONFIGURATION (MUST be done here after chmod)
         echo "[*] Generating defconfig..."
         make -j$(nproc) O=out ARCH=arm64 \
             CC="$TC_DIR/clang" \
+            LD="$TC_DIR/ld.lld" \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             a32_noobie_defconfig
 
-        echo "[*] Applying olddefconfig..."
+        echo "[*] Applying olddefconfig (Handling KernelSU)..."
         make -j$(nproc) O=out ARCH=arm64 \
             CC="$TC_DIR/clang" \
+            LD="$TC_DIR/ld.lld" \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             olddefconfig
