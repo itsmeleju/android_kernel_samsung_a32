@@ -35,22 +35,38 @@ jobs:
     - name: Build kernel
       shell: bash
       run: |
-        # Add the clang bin to the local PATH just to be safe
-        export PATH="${{ github.workspace }}/clang/bin:$PATH"
-        # Set optimization and warning flags
-        export KCFLAGS="-w -O3 -pipe -Wno-int-conversion"
-        export KCPPFLAGS="-O3"
+        # Define the absolute path to your downloaded clang bin
+        CLANG_BIN="${{ github.workspace }}/clang/bin"
+        
+        # Add it to the FRONT of the PATH so 'ld.lld' is found first
+        export PATH="$CLANG_BIN:$PATH"
+        
+        # Verify the tool exists before starting (for your logs)
+        if [ ! -f "$CLANG_BIN/ld.lld" ]; then
+          echo "ERROR: ld.lld not found in $CLANG_BIN"
+          ls -R "${{ github.workspace }}/clang" # Help us see where it actually is
+          exit 1
+        fi
+
+        export KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
         export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
         
-        # Build using the environment variables set by your setup-clang action
         make -j$(nproc) O=out \
           ARCH=arm64 \
+          CC=clang \
+          LD=ld.lld \
+          AR=llvm-ar \
+          NM=llvm-nm \
+          OBJCOPY=llvm-objcopy \
+          OBJDUMP=llvm-objdump \
+          READELF=llvm-readelf \
+          STRIP=llvm-strip \
           LLVM=1 \
           LLVM_IAS=1 \
           CROSS_COMPILE=aarch64-linux-gnu- \
           CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
           CLANG_TRIPLE=aarch64-linux-gnu-
-
+          
     - name: Upload Kernel Image and DTB
       if: success()
       uses: actions/upload-artifact@v4
