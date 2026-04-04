@@ -1,11 +1,12 @@
-## 🚧 𝗖𝘂𝗿𝗿𝗲𝗻𝘁 𝗣𝗿𝗼𝗷𝗲𝗰𝘁
+[![Channel](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/noobiethingz)
+## ⚡ **AuraX Kernel by NoobieThingZ**
+🚧 𝗖𝘂𝗿𝗿𝗲𝗻𝘁 𝗣𝗿𝗼𝗷𝗲𝗰𝘁
 
-> ⚡ **AuraX Kernel by NoobieThingZ**
 
 I’m currently working on **✨ AuraX ✨** — a custom kernel focused on:
 
 - 🚀 **Performance**
-- 🧊 **Thermal control (no overheating)**
+- 🧊 **Thermal control (lower overheating)**
 - 🔋 **Battery efficiency**
 
 > 💡 Built with a balance of **stability + smoothness + power efficiency**
