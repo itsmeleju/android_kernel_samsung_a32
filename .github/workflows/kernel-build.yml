@@ -44,6 +44,7 @@ jobs:
 
         # 2. FIX PERMISSIONS
         chmod -R +x ${{ github.workspace }}/clang/bin
+        find . -type f -name "*.h" -o -name "*.c" | xargs sed -i 's/add\t%w0, %w0, %1/add\t%w0, %w0, %w1/g' 2>/dev/null || true
         
         # 3. PREPARE OUTPUT
         mkdir -p out
