@@ -76,7 +76,7 @@ jobs:
             READELF="$TC_DIR/llvm-readelf" \
             STRIP="$TC_DIR/llvm-strip" \
             LLVM=1 \
-            LLVM_IAS=1 \
+            LLVM_IAS=0 \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             CLANG_TRIPLE=aarch64-linux-gnu- \
