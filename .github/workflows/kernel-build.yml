@@ -79,9 +79,11 @@ jobs:
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             LLVM=1 \
             LLVM_IAS=0 \
-            AS="$TC_DIR/aarch64-linux-gnu-as" \
+            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
+            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             CLANG_TRIPLE=aarch64-linux-gnu- \
-            KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
+            KCFLAGS="-w -O2 -pipe -Wno-int-conversion -fno-integrated-as" \
+            KCPPFLAGS="-O2"
           
     - name: Upload Kernel Image and DTB
       if: success()
