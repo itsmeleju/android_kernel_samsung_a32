@@ -22,9 +22,6 @@ runs:
     - name: Set Environment
       shell: bash
       run: |
-        # 1. Add toolchain to PATH so 'make' can find the assembler/linker
-        echo "${{ github.workspace }}/clang/bin" >> $GITHUB_PATH
-
         # 2. Arch settings
         echo "ARCH=arm64" >> $GITHUB_ENV
         echo "SUBARCH=arm64" >> $GITHUB_ENV
