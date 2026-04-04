@@ -31,31 +31,38 @@ jobs:
       - name: 🔨 Build Kernel
         shell: bash
         run: |
-          # Define Toolchain Path
-          TC_DIR="${{ github.workspace }}/clang/bin"
+          # 1. Add Clang to PATH (but keep system tools accessible)
+          export CLANG_BIN="${{ github.workspace }}/clang/bin"
+          export PATH="$CLANG_BIN:$PATH"
+          export LD_LIBRARY_PATH="${{ github.workspace }}/clang/lib:$LD_LIBRARY_PATH"
           
-          # Build Arguments to fix spinlock and version mismatch errors
+          # 2. Build Arguments
+          # We explicitly set HOSTCC/HOSTLD to /usr/bin tools to avoid the .relr.dyn error
           MAKE_ARGS=(
             O=out
             ARCH=arm64
             CC=clang
+            HOSTCC=/usr/bin/gcc
+            HOSTCXX=/usr/bin/g++
+            HOSTLD=/usr/bin/ld
             LLVM=1
             LLVM_IAS=0
-            CLANG_TRIPLE=aarch64-linux-gnu-
             CROSS_COMPILE=aarch64-linux-gnu-
             CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+            CLANG_TRIPLE=aarch64-linux-gnu-
             KCFLAGS="-w -pipe -O2 -fno-integrated-as -Wno-error"
-            KCPPFLAGS="-O2"
             CONFIG_SECTION_MISMATCH_WARN_ONLY=y
           )
 
           mkdir -p out
 
-          # 1. Generate Config
+          # 3. Configure and Build
+          echo "[*] Configuring with a32_noobie_defconfig..."
           make "${MAKE_ARGS[@]}" a32_noobie_defconfig
 
-          # 2. Build Image and DTBs
-          make -j$(nproc) "${MAKE_ARGS[@]}"
+          echo "[*] Starting Kernel Compilation..."
+          # Use 'all' target to ensure Image and DTBs are made
+          make -j$(nproc --all) "${MAKE_ARGS[@]}" all
 
       - name: 📤 Upload Artifacts
         if: success()
