@@ -12,32 +12,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 Checkout Source
-      uses: actions/checkout@v4
+      - name: 📥 Checkout Source
+        uses: actions/checkout@v4
 
-    - name: 🧰 Install Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          build-essential bc bison flex curl zip unzip \
-          libssl-dev libelf-dev python3 git
+      - name: 🧰 Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential bc bison flex curl zip unzip \
+            libssl-dev libelf-dev python3 git libncurses5-dev
 
-    - name: ⚡ Download Clang 12
-      run: |
-        wget -q https://github.com/ZyCromerZ/Clang/releases/download/12.0.5/Clang-12.0.5-20210719.tar.gz
-        tar -xvf Clang-12.0.5-20210719.tar.gz
-        mv Clang-12.0.5 clang
+      - name: ⚡ Download Clang 12
+        run: |
+          wget -q https://github.com/ZyCromerZ/Clang/releases/download/12.0.5/Clang-12.0.5-20210719.tar.gz
+          tar -xf Clang-12.0.5-20210719.tar.gz
+          mv Clang-12.0.5-20210719 clang
 
-    - name: 🌱 Setup Environment
-      run: |
-        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-        echo "PATH=$GITHUB_WORKSPACE/clang/bin:$PATH" >> $GITHUB_ENV
+      - name: ⚙️ Generate Updated Defconfig
+        run: |
+          # 1. Set Path
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+          
+          # 2. Define Build Variables
+          # LLVM_IAS=0 fixes the spinlock 'operand mismatch' error
+          # Replace 'a32_defconfig' with your actual filename below
+          
+          make O=out ARCH=arm64 \
+              CC=clang \
+              CROSS_COMPILE=aarch64-linux-gnu- \
+              CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+              LLVM=1 \
+              LLVM_IAS=0 \
+              KCFLAGS="-w -pipe -O2" \
+              -j$(nproc) a32_defconfig
+          
+          # 3. Create the minimized defconfig file
+          make O=out ARCH=arm64 \
+              CC=clang \
+              CROSS_COMPILE=aarch64-linux-gnu- \
+              CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+              LLVM=1 \
+              LLVM_IAS=0 \
+              -j$(nproc) savedefconfig
 
-        echo "ARCH=arm64" >> $GITHUB_ENV
-        echo "SUBARCH=arm64" >> $GITHUB_ENV
-        echo "LLVM=1" >> $GITHUB_ENV
-        echo "LLVM_IAS=1" >> $GITHUB_ENV
-
-        # Safe flags
-        echo "KCFLAGS=-O2 -pipe -Wno-error" >> $GITHUB_ENV
-
+      - name: 📤 Upload New Defconfig
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-a32-defconfig
+          path: out/defconfig
