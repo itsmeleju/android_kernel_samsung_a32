@@ -1,0 +1,43 @@
+name: A32 Kernel Build (Clang 12 Stable)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - mtk-performa
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Checkout Source
+      uses: actions/checkout@v4
+
+    - name: 🧰 Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          build-essential bc bison flex curl zip unzip \
+          libssl-dev libelf-dev python3 git
+
+    - name: ⚡ Download Clang 12
+      run: |
+        wget -q https://github.com/ZyCromerZ/Clang/releases/download/12.0.5/Clang-12.0.5-20210719.tar.gz
+        tar -xvf Clang-12.0.5-20210719.tar.gz
+        mv Clang-12.0.5 clang
+
+    - name: 🌱 Setup Environment
+      run: |
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        echo "PATH=$GITHUB_WORKSPACE/clang/bin:$PATH" >> $GITHUB_ENV
+
+        echo "ARCH=arm64" >> $GITHUB_ENV
+        echo "SUBARCH=arm64" >> $GITHUB_ENV
+        echo "LLVM=1" >> $GITHUB_ENV
+        echo "LLVM_IAS=1" >> $GITHUB_ENV
+
+        # Safe flags
+        echo "KCFLAGS=-O2 -pipe -Wno-error" >> $GITHUB_ENV
+
