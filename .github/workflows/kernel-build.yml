@@ -66,7 +66,8 @@ jobs:
             CONFIG_SECTION_MISMATCH_WARN_ONLY=y \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             KCFLAGS="-w -O2 -pipe -Wno-int-conversion -fno-integrated-as -Wno-error" \
-            KCPPFLAGS="-O2"
+            KCPPFLAGS="-O2" \
+            a32_noobie_defconfig
           
     - name: Upload Kernel Image and DTB
       if: success()
