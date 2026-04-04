@@ -64,7 +64,7 @@ jobs:
             olddefconfig
 
         # 5. MAIN BUILD
-        echo "[*] Starting Final Compilation..."
+        # Main Build Command
         make -j$(nproc) O=out \
             ARCH=arm64 \
             CC="$TC_DIR/clang" \
@@ -75,10 +75,11 @@ jobs:
             OBJDUMP="$TC_DIR/llvm-objdump" \
             READELF="$TC_DIR/llvm-readelf" \
             STRIP="$TC_DIR/llvm-strip" \
-            LLVM=1 \
-            LLVM_IAS=0 \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
+            LLVM=1 \
+            LLVM_IAS=0 \
+            AS="$TC_DIR/aarch64-linux-gnu-as" \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             KCFLAGS="-w -O2 -pipe -Wno-int-conversion"
           
