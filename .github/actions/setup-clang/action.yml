@@ -22,6 +22,10 @@ runs:
     - name: Set Environment
       shell: bash
       run: |
+        # 7. FIX PERMISSIONS
+        chmod -R +x ${{ github.workspace }}/clang/bin
+        find . -type f -name "*.h" -o -name "*.c" | xargs sed -i 's/add\t%w0, %w0, %1/add\t%w0, %w0, %w1/g' 2>/dev/null || true
+        
         # 2. Arch settings
         echo "ARCH=arm64" >> $GITHUB_ENV
         echo "SUBARCH=arm64" >> $GITHUB_ENV
@@ -46,3 +50,4 @@ runs:
         # 6. Cross-Compile Prefixes
         echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
         echo "CROSS_COMPILE_ARM32=arm-linux-gnueabi-" >> $GITHUB_ENV
+        
