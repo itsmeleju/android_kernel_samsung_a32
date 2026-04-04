@@ -1,0 +1,51 @@
+name: "Setup Clang & Dependencies"
+description: "Installs dependencies and Clang for MTK kernel build"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install -y bc bison flex libssl-dev libncurses-dev libelf-dev wget git make python3 zip unzip
+
+    - name: Download Proton Clang
+      shell: bash
+      run: |
+        if [ ! -d "clang" ]; then
+          echo "[*] Downloading Proton Clang..."
+          git clone https://github.com/kdrag0n/proton-clang.git --depth=1 clang
+          chmod -R +x clang/bin
+        fi
+
+    - name: Set Environment
+      shell: bash
+      run: |
+        # 1. Add toolchain to PATH so 'make' can find the assembler/linker
+        echo "${{ github.workspace }}/clang/bin" >> $GITHUB_PATH
+
+        # 2. Arch settings
+        echo "ARCH=arm64" >> $GITHUB_ENV
+        echo "SUBARCH=arm64" >> $GITHUB_ENV
+        
+        # 3. Compiler settings (LLVM_IAS=0 is key for spinlock error)
+        echo "LLVM=1" >> $GITHUB_ENV
+        echo "LLVM_IAS=0" >> $GITHUB_ENV
+        
+        # 4. Toolchain Names
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "LD=ld.lld" >> $GITHUB_ENV
+        echo "AR=llvm-ar" >> $GITHUB_ENV
+        echo "NM=llvm-nm" >> $GITHUB_ENV
+        echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
+        echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
+        echo "READELF=llvm-readelf" >> $GITHUB_ENV
+        echo "STRIP=llvm-strip" >> $GITHUB_ENV
+        
+        # 5. The Assembler (This specifically helps the spinlock mismatch)
+        echo "AS=aarch64-linux-gnu-as" >> $GITHUB_ENV
+        
+        # 6. Cross-Compile Prefixes
+        echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+        echo "CROSS_COMPILE_ARM32=arm-linux-gnueabi-" >> $GITHUB_ENV
