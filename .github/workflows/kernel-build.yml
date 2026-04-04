@@ -44,15 +44,7 @@ jobs:
         
         # 3. PREPARE OUTPUT
         mkdir -p out
-
-        # 4. CONFIGURATION
-        echo "[*] Generating defconfig..."
-        make -j$(nproc) O=out ARCH=arm64 \
-            CC="$TC_DIR/clang" \
-            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
-            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
-            a32_noobie_defconfig
-
+        
         # 5. MAIN BUILD
         # Main Build Command
         make -j$(nproc) O=out \
