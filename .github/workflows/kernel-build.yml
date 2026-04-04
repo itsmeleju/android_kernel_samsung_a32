@@ -1,4 +1,4 @@
-name: A32 Kernel Builder by itsmeleju
+name: A32 Kernel Builder by NoobieThingZ
 
 on:
   workflow_dispatch:
@@ -12,70 +12,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout source
-      uses: actions/checkout@v4
+      - name: 📥 Checkout Source
+        uses: actions/checkout@v4
 
-    - name: Cache kernel build and Clang
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache
-          out/
-          clang/
-        key: ${{ runner.os }}-kernel-${{ github.sha }}
+      - name: 🗄️ Cache Toolchain & Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            clang/
+            out/
+          key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-
 
-    - name: Setup build environment
-      uses: ./.github/actions/setup-clang
+      - name: ⚙️ Setup Environment (Local Action)
+        uses: ./.github/actions/setup-clang
 
-    - name: Build kernel
-      shell: bash
-      run: |
-        # 1. DEFINE AND VERIFY DIRECTORIES
-        # If you used 'git clone ... clang', the binaries are in 'clang/bin'
-        TC_DIR="${{ github.workspace }}/clang/bin"
-        
-        # Check if the compiler actually exists at this path
-        if [ ! -f "$TC_DIR/clang" ]; then
-          echo "ERROR: Clang not found at $TC_DIR/clang"
-          echo "Searching for clang location..."
-          find ${{ github.workspace }}/clang -name clang
-          exit 1
-        fi
-        
-        # 3. PREPARE OUTPUT
-        mkdir -p out
-        
-        # 5. MAIN BUILD
-        # Main Build Command
-        make -j$(nproc) O=out \
-            ARCH=arm64 \
-            CC="$TC_DIR/clang" \
-            LD="$TC_DIR/ld.lld" \
-            AR="$TC_DIR/llvm-ar" \
-            NM="$TC_DIR/llvm-nm" \
-            OBJCOPY="$TC_DIR/llvm-objcopy" \
-            OBJDUMP="$TC_DIR/llvm-objdump" \
-            READELF="$TC_DIR/llvm-readelf" \
-            STRIP="$TC_DIR/llvm-strip" \
-            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
-            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
-            LLVM=1 \
-            LLVM_IAS=0 \
-            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
-            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
-            CONFIG_SECTION_MISMATCH_WARN_ONLY=y \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            KCFLAGS="-w -O2 -pipe -Wno-int-conversion -fno-integrated-as -Wno-error" \
-            KCPPFLAGS="-O2" \
-            a32_noobie_defconfig
+      - name: 🔨 Build Kernel
+        shell: bash
+        run: |
+          # Define Toolchain Path
+          TC_DIR="${{ github.workspace }}/clang/bin"
           
-    - name: Upload Kernel Image and DTB
-      if: success()
-      uses: actions/upload-artifact@v4
-      with:
-        name: A32-Kernel-${{ github.run_id }}
-        path: |
-          out/arch/arm64/boot/Image
-          out/arch/arm64/boot/dtb
-          out/arch/arm64/boot/dts/mediatek/*.dtb
-        if-no-files-found: error
+          # Build Arguments to fix spinlock and version mismatch errors
+          MAKE_ARGS=(
+            O=out
+            ARCH=arm64
+            CC=clang
+            LLVM=1
+            LLVM_IAS=0
+            CLANG_TRIPLE=aarch64-linux-gnu-
+            CROSS_COMPILE=aarch64-linux-gnu-
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+            KCFLAGS="-w -pipe -O2 -fno-integrated-as -Wno-error"
+            KCPPFLAGS="-O2"
+            CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+          )
+
+          mkdir -p out
+
+          # 1. Generate Config
+          make "${MAKE_ARGS[@]}" a32_noobie_defconfig
+
+          # 2. Build Image and DTBs
+          make -j$(nproc) "${MAKE_ARGS[@]}"
+
+      - name: 📤 Upload Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: A32-Kernel-Build
+          path: |
+            out/arch/arm64/boot/Image
+            out/arch/arm64/boot/dtb
+            out/arch/arm64/boot/dts/mediatek/*.dtb
+          if-no-files-found: error
