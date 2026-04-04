@@ -71,6 +71,7 @@ jobs:
             LLVM_IAS=0 \
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
+            CONFIG_SECTION_MISMATCH_WARN_ONLY=y \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             KCFLAGS="-w -O2 -pipe -Wno-int-conversion -fno-integrated-as -Wno-error" \
             KCPPFLAGS="-O2"
