@@ -41,10 +41,6 @@ jobs:
           find ${{ github.workspace }}/clang -name clang
           exit 1
         fi
-
-        # 2. FIX PERMISSIONS
-        chmod -R +x ${{ github.workspace }}/clang/bin
-        find . -type f -name "*.h" -o -name "*.c" | xargs sed -i 's/add\t%w0, %w0, %1/add\t%w0, %w0, %w1/g' 2>/dev/null || true
         
         # 3. PREPARE OUTPUT
         mkdir -p out
@@ -56,13 +52,6 @@ jobs:
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             a32_noobie_defconfig
-
-        echo "[*] Applying olddefconfig..."
-        make -j$(nproc) O=out ARCH=arm64 \
-            CC="$TC_DIR/clang" \
-            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
-            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
-            olddefconfig
 
         # 5. MAIN BUILD
         # Main Build Command
@@ -83,7 +72,7 @@ jobs:
             CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-" \
             CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-" \
             CLANG_TRIPLE=aarch64-linux-gnu- \
-            KCFLAGS="-w -O2 -pipe -Wno-int-conversion -fno-integrated-as" \
+            KCFLAGS="-w -O2 -pipe -Wno-int-conversion -fno-integrated-as -Wno-error" \
             KCPPFLAGS="-O2"
           
     - name: Upload Kernel Image and DTB
