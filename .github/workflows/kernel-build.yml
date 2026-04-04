@@ -31,38 +31,50 @@ jobs:
       - name: 🔨 Build Kernel
         shell: bash
         run: |
-          # 1. Add Clang to PATH (but keep system tools accessible)
-          export CLANG_BIN="${{ github.workspace }}/clang/bin"
-          export PATH="$CLANG_BIN:$PATH"
-          export LD_LIBRARY_PATH="${{ github.workspace }}/clang/lib:$LD_LIBRARY_PATH"
+          # 1. Define Absolute Path to Clang (Do NOT add to global PATH)
+          TC_DIR="${{ github.workspace }}/clang/bin"
           
           # 2. Build Arguments
-          # We explicitly set HOSTCC/HOSTLD to /usr/bin tools to avoid the .relr.dyn error
+          # We explicitly define every tool to ensure no cross-contamination
           MAKE_ARGS=(
             O=out
             ARCH=arm64
-            CC=clang
+            CC="$TC_DIR/clang"
+            LD="$TC_DIR/ld.lld"
+            AR="$TC_DIR/llvm-ar"
+            NM="$TC_DIR/llvm-nm"
+            OBJCOPY="$TC_DIR/llvm-objcopy"
+            OBJDUMP="$TC_DIR/llvm-objdump"
+            STRIP="$TC_DIR/llvm-strip"
+            READELF="$TC_DIR/llvm-readelf"
+            
+            # Host tools MUST use system paths to avoid .relr.dyn error
             HOSTCC=/usr/bin/gcc
             HOSTCXX=/usr/bin/g++
             HOSTLD=/usr/bin/ld
+            
+            # Cross Compilation
+            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-"
+            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-"
+            CLANG_TRIPLE=aarch64-linux-gnu-
+            
+            # Kernel Specifics
             LLVM=1
             LLVM_IAS=0
-            CROSS_COMPILE=aarch64-linux-gnu-
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-            CLANG_TRIPLE=aarch64-linux-gnu-
             KCFLAGS="-w -pipe -O2 -fno-integrated-as -Wno-error"
+            KCPPFLAGS="-O2"
             CONFIG_SECTION_MISMATCH_WARN_ONLY=y
           )
 
           mkdir -p out
 
-          # 3. Configure and Build
+          # 3. Configure
           echo "[*] Configuring with a32_noobie_defconfig..."
           make "${MAKE_ARGS[@]}" a32_noobie_defconfig
 
-          echo "[*] Starting Kernel Compilation..."
-          # Use 'all' target to ensure Image and DTBs are made
-          make -j$(nproc --all) "${MAKE_ARGS[@]}" all
+          # 4. Build
+          echo "[*] Starting Compilation..."
+          make -j$(nproc --all) "${MAKE_ARGS[@]}"
 
       - name: 📤 Upload Artifacts
         if: success()
