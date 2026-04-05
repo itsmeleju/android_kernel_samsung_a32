@@ -2069,6 +2069,7 @@ int do_execve(struct filename *filename,
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
 	struct user_arg_ptr envp = { .ptr.native = __envp };
+
 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
 }
 
@@ -2096,6 +2097,7 @@ static int compat_do_execve(struct filename *filename,
 		.is_compat = true,
 		.ptr.compat = __envp,
 	};
+
 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
 }
 
@@ -2145,6 +2147,7 @@ void set_dumpable(struct mm_struct *mm, int value)
 	} while (cmpxchg(&mm->flags, old, new) != old);
 }
 
+//
 SYSCALL_DEFINE3(execve,
 		const char __user *, filename,
 		const char __user *const __user *, argv,
@@ -2193,7 +2196,9 @@ SYSCALL_DEFINE3(execve,
 		}
 	}
 	putname(path);
+  
 #endif
+
 	return do_execve(getname(filename), argv, envp);
 }
 
@@ -2231,3 +2236,5 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 				  argv, envp, flags);
 }
 #endif
+
+

@@ -2,3 +2,15 @@ out/
 arch/arm64/boot/Image
 build_kernel.sh
 modules/
+build_kernel_noobie.sh
+build_kernel_noobie (Copy).sh
+build_kernel_testing.sh
+build_kernel_testing (Copy).sh
+Custom_build.log
+arch/arm64/configs/a32_noobie_defconfig (Copy)
+fs/exec.c.bk
+fs/exec.c.bk
+fs/open.c.bk
+fs/stat.c.bk
+kernel/reboot.c.bk
+

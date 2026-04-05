@@ -43,10 +43,13 @@ config CFQ_GROUP_IOSCHED
 choice
 
 	prompt "Default I/O scheduler"
-	default DEFAULT_CFQ
+	default DEFAULT_MQ_DEADLINE
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
+
+	config DEFAULT_MQ_DEADLINE
+		bool "MQ Deadline" if MQ_IOSCHED_DEADLINE=y
 
 	config DEFAULT_DEADLINE
 		bool "Deadline" if IOSCHED_DEADLINE=y
@@ -61,6 +64,7 @@ endchoice
 
 config DEFAULT_IOSCHED
 	string
+        default "mq-deadline" if DEFAULT_MQ_DEADLINE
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP
