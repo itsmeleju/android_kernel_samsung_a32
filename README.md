@@ -26,6 +26,11 @@ I’m currently working on **✨ AuraX ✨** — a custom kernel focused on:
 
 
 
+
+
+*Special thanks to [mertsan2007](https://github.com/mertsan2007) & [Samsung-MT6769-Devs](https://github.com/Samsung-MT6769-Devs) on Github*
+
+
 Linux kernel
 ============
 
