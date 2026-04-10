@@ -33,7 +33,8 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
 	arch_spinlock_t lockval, newval;
-
+	unsigned int incr = 1 << TICKET_SHIFT;
+	
 	asm volatile(
 	/* Atomically increment the next ticket. */
 	ARM64_LSE_ATOMIC_INSN(
@@ -64,7 +65,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	/* We got the lock. Critical section starts here. */
 "3:"
 	: "=&r" (lockval), "=&r" (newval), "=&r" (tmp), "+Q" (*lock)
-	: "Q" (lock->owner), "r" (1 << TICKET_SHIFT)
+	: "Q" (lock->owner), "r" (incr)
 	: "memory");
 }
 
@@ -72,7 +73,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
 	arch_spinlock_t lockval;
-
+    unsigned int incr = 1 << TICKET_SHIFT;
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
 	"	prfm	pstl1strm, %2\n"
@@ -93,7 +94,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 	"	eor	%w1, %w1, %w0\n"
 	"1:")
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
-	: "r" (1 << TICKET_SHIFT)
+	: "r" (incr)
 	: "memory");
 
 	return !tmp;
