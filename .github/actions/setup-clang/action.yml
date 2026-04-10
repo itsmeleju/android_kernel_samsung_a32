@@ -1,75 +1,54 @@
 name: 'Setup Clang & Environment'
 description: 'Installs dependencies and prepares Neutron/ZyC Clang (real prebuilts)'
 runs:
-  using: "composite"
-  steps:
-    - name: 🧰 Install Build Dependencies
-      shell: bash
-      run: |
+ using: "composite"
+ steps:
+  - name: 🧰 Install Build Dependencies
+    shell: bash
+    run: |
         sudo apt-get update -qq
         sudo apt-get install -y --no-install-recommends \
           build-essential bc bison flex curl wget zip unzip \
           libssl-dev libelf-dev python3 git libncurses5-dev \
           ca-certificates binutils-aarch64-linux-gnu \
           binutils-arm-linux-gnueabi gcc g++ make
+          
+  - name: ⚡ Download Neutron Clang (Stable)
+    shell: bash
+    run: |
+     if [ ! -f "clang/bin/clang" ]; then
+      mkdir -p clang
 
-    - name: ⚡ Download Neutron Clang (Real Prebuilts)
-      shell: bash
-      run: |
-        if [ ! -f "clang/bin/clang" ]; then
-          echo "[*] Fetching latest Neutron Clang release info..."
-          mkdir -p clang
+      echo "[*] Fetching release info..."
+      RELEASE_JSON=$(curl -sL https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest)
 
-          # Neutron Clang: real prebuilt binaries, regularly updated, GitHub releases
-          LATEST=$(curl -sL https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest \
-                   | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
-          echo "[*] Latest Neutron Clang tag: $LATEST"
+      LATEST=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+      echo "[*] Latest Neutron Clang: $LATEST"
 
-          # Download the tar.zst release asset
-          ASSET_URL=$(curl -sL https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest \
-            | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-assets = data.get('assets', [])
-for a in assets:
-    if a['name'].endswith('.tar.zst'):
-        print(a['browser_download_url'])
-        break
-")
-          if [ -z "$ASSET_URL" ]; then
-            echo "[!] Neutron Clang asset not found, falling back to ZyC Clang..."
-            # ZyC Clang fallback - also real prebuilts
-            ASSET_URL=$(curl -sL https://api.github.com/repos/ZyCromerZ/Clang/releases/latest \
-              | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-assets = data.get('assets', [])
-for a in assets:
-    if 'aarch64' in a['name'] and a['name'].endswith('.tar.gz'):
-        print(a['browser_download_url'])
-        break
-")
-            echo "[*] Downloading ZyC Clang: $ASSET_URL"
-            wget -q --show-progress "$ASSET_URL" -O clang.tar.gz
-            tar -xf clang.tar.gz -C clang --strip-components=1
-            rm -f clang.tar.gz
-          else
-            echo "[*] Downloading Neutron Clang: $ASSET_URL"
-            sudo apt-get install -y zstd
-            wget -q --show-progress "$ASSET_URL" -O clang.tar.zst
-            tar --use-compress-program=zstd -xf clang.tar.zst -C clang --strip-components=1
-            rm -f clang.tar.zst
-          fi
+      ASSET_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".tar.zst")) | .browser_download_url' | head -n1)
 
-          echo "[*] Verifying clang binary..."
-          ls clang/bin/
-          clang/bin/clang --version
-        else
-          echo "[*] Clang already cached, skipping download."
-          clang/bin/clang --version
-        fi
+      if [ -z "$ASSET_URL" ]; then
+        echo "[!] Falling back to ZyC Clang..."
+        ZYC_JSON=$(curl -sL https://api.github.com/repos/ZyCromerZ/Clang/releases/latest)
 
-        # CRITICAL: Do NOT add clang/bin to PATH here.
-        # We pass all tool paths explicitly in MAKE_ARGS to avoid
-        # the host linker being overridden by the cross-linker.
-        echo "CLANG_DIR=$(pwd)/clang" >> $GITHUB_ENV
+        ASSET_URL=$(echo "$ZYC_JSON" | jq -r '.assets[] | select(.name | test("aarch64") and endswith(".tar.gz")) | .browser_download_url' | head -n1)
+
+        wget -q --show-progress --tries=3 "$ASSET_URL" -O clang.tar.gz
+        tar -xf clang.tar.gz -C clang --strip-components=1
+        rm -f clang.tar.gz
+      else
+        echo "[*] Downloading Neutron Clang..."
+        wget -q --show-progress --tries=3 "$ASSET_URL" -O clang.tar.zst
+        tar -I zstd -xf clang.tar.zst -C clang --strip-components=1
+        rm -f clang.tar.zst
+      fi
+
+      echo "[*] Clang version:"
+      clang/bin/clang --version
+     else
+      echo "[*] Using cached clang"
+      clang/bin/clang --version
+     fi
+
+     echo "CLANG_DIR=$(pwd)/clang" >> $GITHUB_ENV
+     echo "$(pwd)/clang/bin" >> $GITHUB_PATH
