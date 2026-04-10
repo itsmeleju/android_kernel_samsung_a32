@@ -86,8 +86,8 @@ jobs:
           mkdir -p out
 
           # ── Configure ──────────────────────────────────────────────────────
-          echo "[*] Configuring with a32_noobie_defconfig..."
-          make "${MAKE_ARGS[@]}" a32_noobie_defconfig
+          echo "[*] Configuring with a32_github_defconfig..."
+          make "${MAKE_ARGS[@]}" a32_github_defconfig
 
           # ── Build ──────────────────────────────────────────────────────────
           echo "[*] Starting compilation with $(nproc --all) threads..."
