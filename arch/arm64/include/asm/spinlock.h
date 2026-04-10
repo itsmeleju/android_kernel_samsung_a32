@@ -33,39 +33,30 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
 	arch_spinlock_t lockval, newval;
-	unsigned int incr = 1 << TICKET_SHIFT;
-	
+	u32 incr = 1U << TICKET_SHIFT;
+
 	asm volatile(
-	/* Atomically increment the next ticket. */
 	ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
 "	prfm	pstl1strm, %3\n"
 "1:	ldaxr	%w0, %3\n"
 "	add	%w1, %w0, %w5\n"
 "	stxr	%w2, %w1, %3\n"
 "	cbnz	%w2, 1b\n",
-	/* LSE atomics */
 "	mov	%w2, %w5\n"
 "	ldadda	%w2, %w0, %3\n"
 	__nops(3)
 	)
 
-	/* Did we get the lock? */
 "	eor	%w1, %w0, %w0, ror #16\n"
 "	cbz	%w1, 3f\n"
-	/*
-	 * No: spin on the owner. Send a local event to avoid missing an
-	 * unlock before the exclusive load.
-	 */
 "	sevl\n"
 "2:	wfe\n"
 "	ldaxrh	%w2, %4\n"
 "	eor	%w1, %w2, %w0, lsr #16\n"
 "	cbnz	%w1, 2b\n"
-	/* We got the lock. Critical section starts here. */
 "3:"
 	: "=&r" (lockval), "=&r" (newval), "=&r" (tmp), "+Q" (*lock)
-	: "Q" (lock->owner), "r" ((u32)(1 << TICKET_SHIFT))
+	: "Q" (lock->owner), "r" (incr)
 	: "memory");
 }
 
@@ -73,28 +64,27 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
 	arch_spinlock_t lockval;
-    unsigned int incr = 1 << TICKET_SHIFT;
+	u32 incr = 1U << TICKET_SHIFT;
+
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
 	"	prfm	pstl1strm, %2\n"
 	"1:	ldaxr	%w0, %2\n"
 	"	eor	%w1, %w0, %w0, ror #16\n"
 	"	cbnz	%w1, 2f\n"
-	"	add	%w0, %w0, %3\n"
+	"	add	%w0, %w0, %w3\n"
 	"	stxr	%w1, %w0, %2\n"
 	"	cbnz	%w1, 1b\n"
 	"2:",
-	/* LSE atomics */
 	"	ldr	%w0, %2\n"
 	"	eor	%w1, %w0, %w0, ror #16\n"
 	"	cbnz	%w1, 1f\n"
-	"	add	%w1, %w0, %3\n"
+	"	add	%w1, %w0, %w3\n"
 	"	casa	%w0, %w1, %2\n"
-	"	sub	%w1, %w1, %3\n"
+	"	sub	%w1, %w1, %w3\n"
 	"	eor	%w1, %w1, %w0\n"
 	"1:")
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
-	: "Q" (lock->owner), "I" (1 << TICKET_SHIFT)
+	: "r" (incr)
 	: "memory");
 
 	return !tmp;
@@ -105,16 +95,14 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	unsigned long tmp;
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
 	"	ldrh	%w1, %0\n"
 	"	add	%w1, %w1, #1\n"
 	"	stlrh	%w1, %0",
-	/* LSE atomics */
 	"	mov	%w1, #1\n"
 	"	staddlh	%w1, %0\n"
 	__nops(1))
 	: "=Q" (lock->owner), "=&r" (tmp)
-	: "I" (1 << TICKET_SHIFT)
+	:
 	: "memory");
 }
 
