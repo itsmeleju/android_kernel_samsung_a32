@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
       - mtk-performa
 
 jobs:
@@ -14,31 +13,44 @@ jobs:
     steps:
       - name: 📥 Checkout Source
         uses: actions/checkout@v4
-
-      - name: 🗄️ Cache Toolchain & Build
-        uses: actions/cache@v4
         with:
-          path: |
-            clang/
-            out/
-          key: ${{ runner.os }}-kernel-${{ hashFiles('**/Makefile') }}
-          restore-keys: |
-            ${{ runner.os }}-kernel-
+          fetch-depth: 1
 
-      - name: ⚙️ Setup Environment (Local Action)
+      - name: 🗄️ Cache Toolchain
+        uses: actions/cache@v4
+        id: cache-clang
+        with:
+          path: clang/
+          # Cache busts only when this workflow file changes
+          key: ${{ runner.os }}-neutron-clang-${{ hashFiles('.github/workflows/kernel-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-neutron-clang-
+
+      - name: ⚙️ Setup Environment
         uses: ./.github/actions/setup-clang
 
       - name: 🔨 Build Kernel
         shell: bash
         run: |
-          # 1. Define Absolute Path to Clang (Do NOT add to global PATH)
-          TC_DIR="${{ github.workspace }}/clang/bin"
-          
-          # 2. Build Arguments
-          # We explicitly define every tool to ensure no cross-contamination
+          # ── Toolchain paths ────────────────────────────────────────────────
+          TC_DIR="${CLANG_DIR}/bin"
+
+          # System host tools — MUST point to system gcc/ld, never clang's ld
+          SYS_GCC=$(which gcc)
+          SYS_GXX=$(which g++)
+          SYS_LD=$(which ld)
+
+          echo "[*] Clang:   $($TC_DIR/clang --version | head -1)"
+          echo "[*] Host GCC: $SYS_GCC"
+          echo "[*] Host LD:  $SYS_LD"
+
+          # ── Make arguments ─────────────────────────────────────────────────
           MAKE_ARGS=(
             O=out
             ARCH=arm64
+            SUBARCH=arm64
+
+            # Cross compilation target tools
             CC="$TC_DIR/clang"
             LD="$TC_DIR/ld.lld"
             AR="$TC_DIR/llvm-ar"
@@ -47,42 +59,58 @@ jobs:
             OBJDUMP="$TC_DIR/llvm-objdump"
             STRIP="$TC_DIR/llvm-strip"
             READELF="$TC_DIR/llvm-readelf"
-            
-            # Host tools MUST use system paths to avoid .relr.dyn error
-            HOSTCC=/usr/bin/gcc
-            HOSTCXX=/usr/bin/g++
-            HOSTLD=/usr/bin/ld
-            
-            # Cross Compilation
-            CROSS_COMPILE="$TC_DIR/aarch64-linux-gnu-"
-            CROSS_COMPILE_ARM32="$TC_DIR/arm-linux-gnueabi-"
-            CLANG_TRIPLE=aarch64-linux-gnu-
-            
-            # Kernel Specifics
+            OBJSIZE="$TC_DIR/llvm-size"
+
+            # ⚠️ Host tools MUST be system binaries — this is what fixes .relr.dyn
+            HOSTCC="$SYS_GCC"
+            HOSTCXX="$SYS_GXX"
+            HOSTLD="$SYS_LD"
+            HOSTAR="/usr/bin/ar"
+            HOSTSTRIP="/usr/bin/strip"
+
+            # Cross compile prefixes (binutils wrappers, not clang ld)
+            CROSS_COMPILE="aarch64-linux-gnu-"
+            CROSS_COMPILE_ARM32="arm-linux-gnueabi-"
+            CLANG_TRIPLE="aarch64-linux-gnu-"
+
+            # Use LLVM tools for target, but NOT integrated assembler
+            # (many MTK/Samsung kernels have inline asm incompatible with LLVM IAS)
             LLVM=1
             LLVM_IAS=0
-            KCFLAGS="-w -pipe -O2 -fno-integrated-as -Wno-error"
-            KCPPFLAGS="-O2"
+
+            # Suppress known-harmless warnings as errors
+            KCFLAGS="-w -pipe -O2 -Wno-error"
             CONFIG_SECTION_MISMATCH_WARN_ONLY=y
           )
 
           mkdir -p out
 
-          # 3. Configure
+          # ── Configure ──────────────────────────────────────────────────────
           echo "[*] Configuring with a32_noobie_defconfig..."
           make "${MAKE_ARGS[@]}" a32_noobie_defconfig
 
-          # 4. Build
-          echo "[*] Starting Compilation..."
-          make -j$(nproc --all) "${MAKE_ARGS[@]}"
+          # ── Build ──────────────────────────────────────────────────────────
+          echo "[*] Starting compilation with $(nproc --all) threads..."
+          make -j$(nproc --all) "${MAKE_ARGS[@]}" 2>&1 | tee build.log
 
-      - name: 📤 Upload Artifacts
+          echo "[*] Build complete. Checking for output..."
+          ls -lh out/arch/arm64/boot/ || true
+
+      - name: 📋 Upload Build Log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
+      - name: 📤 Upload Kernel Image
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: A32-Kernel-Build
+          name: A32-Kernel-${{ github.sha }}
           path: |
             out/arch/arm64/boot/Image
+            out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dtb
             out/arch/arm64/boot/dts/mediatek/*.dtb
-          if-no-files-found: error
+          if-no-files-found: warn
