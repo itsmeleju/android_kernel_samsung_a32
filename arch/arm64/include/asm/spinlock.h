@@ -65,7 +65,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	/* We got the lock. Critical section starts here. */
 "3:"
 	: "=&r" (lockval), "=&r" (newval), "=&r" (tmp), "+Q" (*lock)
-	: "Q" (lock->owner), "r" (incr)
+	: "Q" (lock->owner), "r" ((u32)(1 << TICKET_SHIFT))
 	: "memory");
 }
 
@@ -94,7 +94,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 	"	eor	%w1, %w1, %w0\n"
 	"1:")
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
-	: "r" (incr)
+	: "Q" (lock->owner), "I" (1 << TICKET_SHIFT)
 	: "memory");
 
 	return !tmp;
@@ -114,7 +114,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	"	staddlh	%w1, %0\n"
 	__nops(1))
 	: "=Q" (lock->owner), "=&r" (tmp)
-	:
+	: "I" (1 << TICKET_SHIFT)
 	: "memory");
 }
 
