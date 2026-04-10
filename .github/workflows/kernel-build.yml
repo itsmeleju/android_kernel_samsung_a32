@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - github_action
       - mtk-performa
 
 jobs:
@@ -79,7 +80,7 @@ jobs:
             LLVM_IAS=0
 
             # Suppress known-harmless warnings as errors
-            KCFLAGS="-w -pipe -O2 -Wno-error"
+            KCFLAGS="-w -pipe -O2 -Wno-error -Wint-conversion"
             CONFIG_SECTION_MISMATCH_WARN_ONLY=y
           )
 
