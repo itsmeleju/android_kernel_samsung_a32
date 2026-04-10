@@ -104,14 +104,22 @@ jobs:
           name: build-log
           path: build.log
 
-      - name: 📤 Upload Kernel Image
-        if: success()
+      - name: 📦 Prepare AnyKernel3
+        run: |
+          mkdir -p AK3
+          cp -r AnyKernel3/* AK3/  # Copy kernel files
+          cp out/arch/arm64/boot/Image.gz AK3/ || true
+          cp out/arch/arm64/boot/Image AK3/ || true
+          cp out/arch/arm64/boot/dtb AK3/ || true
+          cp out/arch/arm64/boot/dts/mediatek/*.dtb AK3/ || true
+
+      - name: 📦 Build AK3 Zip
+        run: |
+          cd AK3
+          zip -r9 ../A32-Kernel-AK3.zip *
+          
+      - name: 📤 Upload AK3 Zip
         uses: actions/upload-artifact@v4
         with:
-          name: A32-Kernel-${{ github.sha }}
-          path: |
-            out/arch/arm64/boot/Image
-            out/arch/arm64/boot/Image.gz
-            out/arch/arm64/boot/dtb
-            out/arch/arm64/boot/dts/mediatek/*.dtb
-          if-no-files-found: warn
+         name: A32-Kernel-AK3-${{ github.sha }}
+         path: A32-Kernel-AK3.zip
