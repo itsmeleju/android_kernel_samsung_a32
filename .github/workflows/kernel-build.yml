@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - mtk-performa
+      - github_action
 
 jobs:
   build:
