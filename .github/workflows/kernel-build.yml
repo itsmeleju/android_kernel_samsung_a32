@@ -99,20 +99,28 @@ jobs:
 
       - name: 📦 Prepare AnyKernel3
         run: |
-          mkdir -p AK3
-          cp -r AnyKernel3/* AK3/  # Copy kernel files
-          cp out/arch/arm64/boot/Image.gz AK3/ || true
-          cp out/arch/arm64/boot/Image AK3/ || true
-          cp out/arch/arm64/boot/dtb AK3/ || true
-          cp out/arch/arm64/boot/dts/mediatek/*.dtb AK3/ || true
+          # AnyKernel3 is already in the kernel source root
+          # Just copy built kernel files into it
+          cp out/arch/arm64/boot/Image.gz AnyKernel3/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image AnyKernel3/ 2>/dev/null || true
+          
+          # Copy DTB files
+          cp out/arch/arm64/boot/dtb AnyKernel3/ 2>/dev/null || true
+          find out/arch/arm64/boot/dts/mediatek/ -name "*.dtb" -exec cp {} AnyKernel3/ \; 2>/dev/null || true
+          
+          # Verify at least one kernel image exists
+          ls AnyKernel3/Image* || { echo "❌ No kernel image found!"; exit 1; }
 
       - name: 📦 Build AK3 Zip
         run: |
-          cd AK3
-          zip -r9 ../A32-Kernel-AK3.zip *
-          
+          cd AnyKernel3
+          zip -r9 ../A32-Kernel-AK3.zip . \
+            -x "*.git*" \
+            -x "*.github*" \
+            -x "README.md"
+
       - name: 📤 Upload AK3 Zip
         uses: actions/upload-artifact@v4
         with:
-         name: A32-Kernel-AK3-${{ github.sha }}
-         path: A32-Kernel-AK3.zip
+          name: A32-Kernel-AK3-${{ github.sha }}
+          path: A32-Kernel-AK3.zip
