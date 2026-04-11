@@ -97,13 +97,6 @@ jobs:
           echo "[*] Build complete. Checking for output..."
           ls -lh out/arch/arm64/boot/ || true
 
-      - name: 📋 Upload Build Log (always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
-
       - name: 📦 Prepare AnyKernel3
         run: |
           mkdir -p AK3
