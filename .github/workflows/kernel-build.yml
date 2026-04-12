@@ -30,7 +30,7 @@ jobs:
       - name: ⚙️ Setup Environment
         uses: ./.github/actions/setup-clang
 
-      - name: 🔨 Build Kernel
+      - name: 🔨 Build AuraX
         shell: bash
         run: |
           # ── Toolchain paths ────────────────────────────────────────────────
@@ -75,7 +75,7 @@ jobs:
             CLANG_TRIPLE="aarch64-linux-gnu-"
 
             # Use LLVM tools for target, but NOT integrated assembler
-            # (many MTK/Samsung kernels have inline asm incompatible with LLVM IAS)
+            # (many MTK/Samsung kernels have inline asm incompatible with LLVM IAS-noobie)
             LLVM=1
             LLVM_IAS=0
 
@@ -124,3 +124,4 @@ jobs:
         with:
           name: A32-Kernel-AK3-${{ github.sha }}
           path: A32-Kernel-AK3.zip
+#All good noobie
