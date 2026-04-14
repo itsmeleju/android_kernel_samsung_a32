@@ -472,12 +472,16 @@ static bool work_fixup_init(void *addr, enum debug_obj_state state)
 static bool work_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct work_struct *work = addr;
-
+//changed the logic, to avoid deadlocks
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODEBUG_STATE_ACTIVE: 
+	if (current_work())
+		cancel_work(work);
+	else
 		cancel_work_sync(work);
-		debug_object_free(work, &work_debug_descr);
-		return true;
+
+	debug_object_init(work, &work_debug_descr);
+	return true;
 	default:
 		return false;
 	}
