@@ -991,15 +991,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	blk_set_queue_dying(q);
 	spin_lock_irq(lock);
 
-	/*
-	 * A dying queue is permanently in bypass mode till released.  Note
-	 * that, unlike blk_queue_bypass_start(), we aren't performing
-	 * synchronize_rcu() after entering bypass mode to avoid the delay
-	 * as some drivers create and destroy a lot of queues while
-	 * probing.  This is still safe because blk_release_queue() will be
-	 * called only after the queue refcnt drops to zero and nothing,
-	 * RCU or not, would be traversing the queue by then.
-	 */
 	q->bypass_depth++;
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
 
@@ -1009,10 +1000,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	spin_unlock_irq(lock);
 	mutex_unlock(&q->sysfs_lock);
 
-	/*
-	 * Drain all requests queued before DYING marking. Set DEAD flag to
-	 * prevent that q->request_fn() gets invoked after draining finished.
-	 */
 	blk_freeze_queue(q);
 	spin_lock_irq(lock);
 	queue_flag_set(QUEUE_FLAG_DEAD, q);
@@ -1021,15 +1008,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	blk_queue_reset_io_vol(q);
 	blk_free_turbo_write(q);
 
-	/*
-	 * make sure all in-progress dispatch are completed because
-	 * blk_freeze_queue() can only complete all requests, and
-	 * dispatch may still be in-progress since we dispatch requests
-	 * from more than one contexts.
-	 *
-	 * We rely on driver to deal with the race in case that queue
-	 * initialization isn't done.
-	 */
 	if (q->mq_ops && blk_queue_init_done(q))
 		blk_mq_quiesce_queue(q);
 
@@ -1038,7 +1016,30 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	/* @q won't process any more request, flush async actions */
 	del_timer_sync(&q->backing_dev_info->laptop_mode_wb_timer);
-	blk_sync_queue(q);
+	
+	/* * FIX: Avoid deadlock during dm_destroy/apexd teardown.
+	 * If we are in a workqueue context, blk_sync_queue's cancel_work_sync
+	 * will deadlock. We check current_work() to decide if we should
+	 * perform a synchronous or asynchronous cancel.
+	 */
+	if (current_work()) {
+		/* * We are on a worker thread. We must not block on 
+		 * cancel_work_sync(). Use the non-sync version.
+		 */
+		del_timer(&q->timeout);
+		cancel_work(&q->timeout_work);
+		if (q->mq_ops) {
+			struct blk_mq_hw_ctx *hctx;
+			int i;
+			queue_for_each_hw_ctx(q, hctx, i)
+				cancel_delayed_work(&hctx->run_work);
+		} else {
+			cancel_delayed_work(&q->delay_work);
+		}
+	} else {
+		/* Safe process context, perform full sync */
+		blk_sync_queue(q);
+	}
 
 	if (q->mq_ops)
 		blk_mq_free_queue(q);
