@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - mtk-performa
       - github_action
+      - noobie-patches-april
 
 jobs:
   build:
