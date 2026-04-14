@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - github_action
       - noobie-patches-april
+      - github_action
 
 jobs:
   build:
