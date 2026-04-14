@@ -472,16 +472,20 @@ static bool work_fixup_init(void *addr, enum debug_obj_state state)
 static bool work_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct work_struct *work = addr;
-//changed the logic, to avoid deadlocks
-	switch (state) {
-	case ODEBUG_STATE_ACTIVE: 
-	if (current_work())
-		cancel_work(work);
-	else
-		cancel_work_sync(work);
 
-	debug_object_init(work, &work_debug_descr);
-	return true;
+	switch (state) {
+	case ODEBUG_STATE_ACTIVE:
+		/*
+		 * If the work is still active, we MUST synchronize and
+		 * cancel it before the memory is pulled out from under 
+		 * the worker thread. 
+		 * * NOTE: If this deadlocks, the caller is trying to free 
+		 * its own work-item from within the work-item's handler.
+		 * The fix belongs in the caller's teardown logic.
+		 */
+		cancel_work_sync(work);
+		debug_object_init(work, &work_debug_descr);
+		return true;
 	default:
 		return false;
 	}
