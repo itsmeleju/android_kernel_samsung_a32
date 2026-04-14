@@ -449,7 +449,7 @@ static bool work_is_static_object(void *addr)
 
 /*
  * fixup_init is called when:
- * - an active object is initialized
+ * - an active object is initialized (re-initializing a busy work item)
  */
 static bool work_fixup_init(void *addr, enum debug_obj_state state)
 {
@@ -457,6 +457,9 @@ static bool work_fixup_init(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_ACTIVE:
+		/* * The work is busy. We must sync-cancel before re-init
+		 * to prevent the scheduler from using a corrupted object.
+		 */
 		cancel_work_sync(work);
 		debug_object_init(work, &work_debug_descr);
 		return true;
@@ -467,18 +470,18 @@ static bool work_fixup_init(void *addr, enum debug_obj_state state)
 
 /*
  * fixup_free is called when:
- * - an active object is freed
+ * - an active object is about to be freed from memory
  */
-static bool work_fixup_init(void *addr, enum debug_obj_state state)
+static bool work_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct work_struct *work = addr;
 
 	switch (state) {
 	case ODEBUG_STATE_ACTIVE:
 		/*
-		 * We reached here because someone called INIT_WORK() on 
-		 * We MUST stop it synchronously to prevent the old 
-		 * handler from running and potentially corrupting memory. by noobie
+		 * Crucial: If we don't cancel_work_sync here, the worker
+		 * thread will crash when it tries to run the work 
+		 * after the memory has been freed.
 		 */
 		cancel_work_sync(work);
 		debug_object_init(work, &work_debug_descr);
