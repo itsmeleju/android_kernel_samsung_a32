@@ -1,0 +1,125 @@
+name: A32 Kernel Builder by NoobieThingZ
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - noobie-patches-april
+      - github_action
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🗄️ Cache Toolchain
+        uses: actions/cache@v4
+        id: cache-clang
+        with:
+          path: clang/
+          # Cache busts only when this workflow file changes
+          key: ${{ runner.os }}-neutron-clang-${{ hashFiles('.github/workflows/kernel-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-neutron-clang-
+
+      - name: ⚙️ Setup Environment
+        uses: ./.github/actions/setup-clang
+
+      - name: 🔨 Build AuraX
+        shell: bash
+        run: |
+          # ── Toolchain paths ────────────────────────────────────────────────
+          TC_DIR="${CLANG_DIR}/bin"
+
+          # System host tools — MUST point to system gcc/ld, never clang's ld
+          SYS_GCC=$(which gcc)
+          SYS_GXX=$(which g++)
+          SYS_LD=$(which ld)
+
+          echo "[*] Clang:   $($TC_DIR/clang --version | head -1)"
+          echo "[*] Host GCC: $SYS_GCC"
+          echo "[*] Host LD:  $SYS_LD"
+
+          # ── Make arguments ─────────────────────────────────────────────────
+          MAKE_ARGS=(
+            O=out
+            ARCH=arm64
+            SUBARCH=arm64
+
+            # Cross compilation target tools
+            CC="$TC_DIR/clang"
+            LD="$TC_DIR/ld.lld"
+            AR="$TC_DIR/llvm-ar"
+            NM="$TC_DIR/llvm-nm"
+            OBJCOPY="$TC_DIR/llvm-objcopy"
+            OBJDUMP="$TC_DIR/llvm-objdump"
+            STRIP="$TC_DIR/llvm-strip"
+            READELF="$TC_DIR/llvm-readelf"
+            OBJSIZE="$TC_DIR/llvm-size"
+
+            # ⚠️ Host tools MUST be system binaries — this is what fixes .relr.dyn
+            HOSTCC="$SYS_GCC"
+            HOSTCXX="$SYS_GXX"
+            HOSTLD="$SYS_LD"
+            HOSTAR="/usr/bin/ar"
+            HOSTSTRIP="/usr/bin/strip"
+
+            # Cross compile prefixes (binutils wrappers, not clang ld)
+            CROSS_COMPILE="aarch64-linux-gnu-"
+            CROSS_COMPILE_ARM32="arm-linux-gnueabi-"
+            CLANG_TRIPLE="aarch64-linux-gnu-"
+
+            # Use LLVM tools for target, but NOT integrated assembler
+            # (many MTK/Samsung kernels have inline asm incompatible with LLVM IAS-noobie)
+            LLVM=1
+            LLVM_IAS=0
+
+            # Suppress known-harmless warnings as errors
+            KCFLAGS="-w -pipe -O2 -Wno-error"
+            CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+          )
+
+          mkdir -p out
+
+          # ── Configure ──────────────────────────────────────────────────────
+          echo "[*] Configuring with a32_github_defconfig..."
+          make "${MAKE_ARGS[@]}" a32_github_defconfig
+
+          # ── Build ──────────────────────────────────────────────────────────
+          echo "[*] Starting compilation with $(nproc --all) threads..."
+          make -j$(nproc --all) "${MAKE_ARGS[@]}" 2>&1 | tee build.log
+
+          echo "[*] Build complete. Checking for output..."
+          ls -lh out/arch/arm64/boot/ || true
+
+      - name: 📦 Prepare AnyKernel3
+        run: |
+          # AnyKernel3 is already in the kernel source root
+          # Just copy built kernel files into it
+          cp out/arch/arm64/boot/Image AnyKernel3/ 2>/dev/null || true
+          
+          # Copy DTB files
+          cp out/arch/arm64/boot/dtb AnyKernel3/ 2>/dev/null || true
+          find out/arch/arm64/boot/dts/mediatek/ -name "*.dtb" -exec cp {} AnyKernel3/ \; 2>/dev/null || true
+          
+          # Verify at least one kernel image exists
+          ls AnyKernel3/Image* || { echo "❌ No kernel image found!"; exit 1; }
+
+      - name: 📦 Build AK3 Zip
+        run: |
+          cd AnyKernel3
+          zip -r9 ../A32-Kernel-AK3.zip . \
+            -x "*.git*" \
+            -x "*.github*" \
+            -x "README.md"
+
+      - name: 📤 Upload AK3 Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: A32-Kernel-AK3-${{ github.sha }}
+#All good noobie
