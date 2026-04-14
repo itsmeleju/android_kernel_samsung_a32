@@ -1,0 +1,54 @@
+name: 'Setup Clang & Environment'
+description: 'Installs dependencies and prepares Neutron/ZyC Clang (real prebuilts)'
+runs:
+ using: "composite"
+ steps:
+  - name: 🧰 Install Build Dependencies
+    shell: bash
+    run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          build-essential bc bison flex curl wget zip unzip \
+          libssl-dev libelf-dev python3 git libncurses5-dev \
+          ca-certificates binutils-aarch64-linux-gnu \
+          binutils-arm-linux-gnueabi gcc g++ make
+          
+  - name: ⚡ Download Neutron Clang (Stable)
+    shell: bash
+    run: |
+     if [ ! -f "clang/bin/clang" ]; then
+      mkdir -p clang
+
+      echo "[*] Fetching release info..."
+      RELEASE_JSON=$(curl -sL https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest)
+
+      LATEST=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+      echo "[*] Latest Neutron Clang: $LATEST"
+
+      ASSET_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".tar.zst")) | .browser_download_url' | head -n1)
+
+      if [ -z "$ASSET_URL" ]; then
+        echo "[!] Falling back to ZyC Clang..."
+        ZYC_JSON=$(curl -sL https://api.github.com/repos/ZyCromerZ/Clang/releases/latest)
+
+        ASSET_URL=$(echo "$ZYC_JSON" | jq -r '.assets[] | select(.name | test("aarch64") and endswith(".tar.gz")) | .browser_download_url' | head -n1)
+
+        wget -q --show-progress --tries=3 "$ASSET_URL" -O clang.tar.gz
+        tar -xf clang.tar.gz -C clang --strip-components=1
+        rm -f clang.tar.gz
+      else
+        echo "[*] Downloading Neutron Clang..."
+        wget -q --show-progress --tries=3 "$ASSET_URL" -O clang.tar.zst
+        tar -I zstd -xf clang.tar.zst -C clang --strip-components=1
+        rm -f clang.tar.zst
+      fi
+
+      echo "[*] Clang version:"
+      clang/bin/clang --version
+     else
+      echo "[*] Using cached clang"
+      clang/bin/clang --version
+     fi
+
+     echo "CLANG_DIR=$(pwd)/clang" >> $GITHUB_ENV
+     echo "$(pwd)/clang/bin" >> $GITHUB_PATH
