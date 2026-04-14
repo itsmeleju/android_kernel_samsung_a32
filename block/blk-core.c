@@ -666,16 +666,37 @@ EXPORT_SYMBOL(blk_stop_queue);
 void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->timeout);
-	cancel_work_sync(&q->timeout_work);
 
-	if (q->mq_ops) {
-		struct blk_mq_hw_ctx *hctx;
-		int i;
+	/*
+	 * Fix: If we are running in a workqueue context, we must use
+	 * non-sync variants to avoid deadlocking with the power
+	 * management or error handling workqueues.
+	 */
+	if (current_work()) {
+		cancel_work(&q->timeout_work);
 
-		queue_for_each_hw_ctx(q, hctx, i)
-			cancel_delayed_work_sync(&hctx->run_work);
+		if (q->mq_ops) {
+			struct blk_mq_hw_ctx *hctx;
+			int i;
+
+			queue_for_each_hw_ctx(q, hctx, i)
+				cancel_delayed_work(&hctx->run_work);
+		} else {
+			cancel_delayed_work(&q->delay_work);
+		}
 	} else {
-		cancel_delayed_work_sync(&q->delay_work);
+		/* Safe process context: use standard sync versions */
+		cancel_work_sync(&q->timeout_work);
+
+		if (q->mq_ops) {
+			struct blk_mq_hw_ctx *hctx;
+			int i;
+
+			queue_for_each_hw_ctx(q, hctx, i)
+				cancel_delayed_work_sync(&hctx->run_work);
+		} else {
+			cancel_delayed_work_sync(&q->delay_work);
+		}
 	}
 }
 EXPORT_SYMBOL(blk_sync_queue);
