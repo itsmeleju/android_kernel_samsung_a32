@@ -230,6 +230,14 @@ static void mcdi_set_timer(int cpu)
 	unsigned int time_us, thresh;
 	unsigned long flags;
 
+	/* * FIX: Guard against calling hrtimer_start from unsafe contexts.
+	 * On kernel 4.14, arming a pinned timer from within an interrupt
+	 * or NMI while in the idle path (PID 0) can lead to a deadlock 
+	 * or base-lock corruption.
+	 */
+	if (in_interrupt() || in_nmi())
+		return;
+
 	if (!mcdi_cluster.tmr_en)
 		return;
 
@@ -255,8 +263,13 @@ static void mcdi_set_timer(int cpu)
 	mcdi_cluster.tmr_running = true;
 	mcdi_cluster.owner = cpu;
 
+	/*
+	 * RCU_NONIDLE is used because the CPU might be in an RCU-idle state.
+	 * hrtimer_start needs to be wrapped to ensure RCU is "watching" 
+	 * this execution window.
+	 */
 	RCU_NONIDLE(hrtimer_start(&mcdi_cluster.timer,
-			ns_to_ktime(time_us * NSEC_PER_USEC),
+			ns_to_ktime((u64)time_us * NSEC_PER_USEC),
 			HRTIMER_MODE_REL_PINNED));
 
 	spin_unlock_irqrestore(&mcdi_cluster_spin_lock, flags);
