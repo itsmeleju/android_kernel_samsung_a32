@@ -22,9 +22,8 @@
 static unsigned int FY_6768Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	/* Freq, Vproc, post_div, clk_div */
 
-	/* L — OC: 1700→1800MHz, voltage bumped for stability */
-	{ 1800, 80, 1, 1 },   // OC: +100MHz, Vproc raised from 74→80 for long gaming stability
-	{ 1700, 74, 2, 1 },   // previous top, kept as step-down
+	/* L — Stock: 1700MHz Max */
+	{ 1700, 74, 2, 1 },   // Stock Top
 	{ 1625, 69, 2, 1 },
 	{ 1500, 63, 2, 1 },
 	{ 1450, 61, 2, 1 },
@@ -37,12 +36,12 @@ static unsigned int FY_6768Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{  999, 39, 2, 1 },
 	{  950, 37, 2, 1 },
 	{  900, 35, 2, 1 },
+	{  850, 32, 2, 1 },
 	{  774, 28, 4, 1 },
 	{  500, 24, 4, 1 },
 
-	/* B — OC: 2000→2100MHz, Vproc capped at PMIC max 99 */
-	{ 2100, 99, 1, 1 },   // OC: +100MHz @ max PMIC voltage, stable for burst gaming
-	{ 2000, 94, 1, 1 },   // previous top, kept as reliable step
+	/* B — Stock: 2000MHz Max */
+	{ 2000, 94, 1, 1 },   // Stock Top
 	{ 1950, 92, 1, 1 },
 	{ 1900, 90, 1, 1 },
 	{ 1850, 88, 1, 1 },
@@ -56,11 +55,11 @@ static unsigned int FY_6768Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{ 1176, 48, 2, 1 },
 	{ 1087, 43, 2, 1 },
 	{  998, 37, 2, 1 },
+	{  900, 32, 2, 1 },
 	{  850, 28, 2, 1 },
 
-	/* CCI — scaled up to match B cluster coherency at OC */
-	{ 1277, 78, 2, 1 },   // OC: raised from 1187→1277MHz to match 2.1GHz B cluster
-	{ 1187, 71, 2, 1 },
+	/* CCI — Stock Max */
+	{ 1187, 71, 2, 1 },   // Stock Top
 	{ 1120, 64, 2, 1 },
 	{ 1049, 60, 2, 1 },
 	{ 1014, 58, 2, 1 },
@@ -73,6 +72,7 @@ static unsigned int FY_6768Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{  698, 37, 4, 1 },
 	{  663, 35, 4, 1 },
 	{  628, 33, 4, 1 },
+	{  590, 31, 4, 1 },
 	{  558, 28, 4, 1 },
 	{  500, 24, 4, 1 },
 };
@@ -136,13 +136,12 @@ static unsigned int FY_6767Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{  500, 24, 4, 1 },
 };
 
-/* pro_v8 — MAIN GAMING TABLE: maximum stable OC for SCHEDUTIL */
+/* pro_v8 — STABLE DAILY TABLE: Stock Speeds with GPU OC optimization, noobie */
 static unsigned int proTbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	/* Freq, Vproc, post_div, clk_div */
 
-	/* L — OC: 2000→2100MHz. SCHEDUTIL-friendly: tight, even voltage ladder */
-	{ 2100, 99, 1, 1 },   // OC top: +100MHz @ max PMIC, stable sustained
-	{ 2000, 92, 1, 1 },
+	/* L — Stock: 2000MHz Max */
+	{ 2000, 92, 1, 1 },   // Stock Top
 	{ 1950, 89, 1, 1 },
 	{ 1900, 86, 1, 1 },
 	{ 1850, 83, 1, 1 },
@@ -155,13 +154,12 @@ static unsigned int proTbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{ 1175, 48, 2, 1 },
 	{ 1075, 43, 2, 1 },
 	{  974, 38, 2, 1 },
+	{  875, 33, 2, 1 },
 	{  774, 28, 4, 1 },
 	{  500, 24, 4, 1 },
 
-	/* B — OC: 2202→2300MHz. Vproc held at 99 (PMIC ceiling). SCHEDUTIL will
-	   naturally avoid sustained 2.3GHz under thermal pressure — safe for gaming */
-	{ 2300, 99, 1, 1 },   // OC: +98MHz beyond previous top, PMIC voltage ceiling held
-	{ 2202, 99, 1, 1 },
+	/* B — Stock: 2202MHz Max */
+	{ 2202, 99, 1, 1 },   // Stock Top
 	{ 2133, 99, 1, 1 },
 	{ 2066, 97, 1, 1 },
 	{ 2000, 94, 1, 1 },
@@ -175,12 +173,11 @@ static unsigned int proTbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{ 1295, 55, 2, 1 },
 	{ 1176, 48, 2, 1 },
 	{ 1057, 41, 2, 1 },
+	{  950, 35, 2, 1 },
 	{  850, 28, 2, 1 },
 
-	/* CCI — OC: 1396→1500MHz. Critical for SCHEDUTIL: CCI must not bottleneck
-	   inter-cluster data movement when big cores burst to 2.3GHz */
-	{ 1500, 99, 2, 1 },   // OC: +104MHz, Vproc at ceiling — matches B cluster burst
-	{ 1396, 92, 2, 1 },
+	/* CCI — Stock: 1396MHz Max */
+	{ 1396, 92, 2, 1 },   // Stock Top
 	{ 1343, 87, 2, 1 },
 	{ 1290, 82, 2, 1 },
 	{ 1263, 79, 2, 1 },
@@ -193,6 +190,7 @@ static unsigned int proTbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{  821, 45, 2, 1 },
 	{  751, 41, 2, 1 },
 	{  680, 36, 4, 1 },
+	{  610, 32, 4, 1 },
 	{  558, 28, 4, 1 },
 	{  500, 24, 4, 1 },
 };
@@ -374,31 +372,30 @@ static unsigned int proTbl_v7[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{  500, 24, 4, 1 },
 };
 
-/* FY_G75Tbl — G75 variant, conservative but stable OC */
+/* FY_G75Tbl — G75 variant, conservative */
 static unsigned int FY_G75Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	/* Freq, Vproc, post_div, clk_div */
 
-	/* L */
-	{ 1900, 85, 1, 1 },   // OC: 1800→1900MHz, Vproc 78→85
+/* L — Stock: 1800MHz */
 	{ 1800, 78, 1, 1 },
-	{ 1625, 70, 2, 1 },
-	{ 1500, 65, 2, 1 },
-	{ 1450, 63, 2, 1 },
-	{ 1375, 60, 2, 1 },
-	{ 1325, 58, 2, 1 },
-	{ 1275, 55, 2, 1 },
-	{ 1175, 50, 2, 1 },
-	{ 1100, 47, 2, 1 },
-	{ 1050, 45, 2, 1 },
-	{  999, 42, 2, 1 },
-	{  950, 40, 2, 1 },
-	{  900, 37, 2, 1 },
-	{  774, 30, 4, 1 },
-	{  500, 26, 4, 1 },
+	{ 1700, 70, 2, 1 },
+    { 1625, 65, 2, 1 },
+	{ 1500, 60, 2, 1 },
+	{ 1450, 58, 2, 1 },
+	{ 1375, 55, 2, 1 },
+	{ 1325, 53, 2, 1 },
+	{ 1275, 50, 2, 1 },
+	{ 1175, 45, 2, 1 },
+	{ 1100, 42, 2, 1 },
+	{ 1050, 40, 2, 1 },
+	{  999, 37, 2, 1 },
+	{  950, 35, 2, 1 },
+	{  900, 33, 2, 1 },
+	{  774, 28, 4, 1 },
+	{  500, 24, 4, 1 },
 
-	/* B */
-	{ 2100, 99, 1, 1 },   // OC: 2000→2100MHz
-	{ 2000, 92, 1, 1 },
+/* B — Stock: 2000MHz */
+	{ 2000, 92, 1, 1 },  // Revert: 2100MHz→2000 to avoid heating, noobie
 	{ 1950, 90, 1, 1 },
 	{ 1900, 88, 1, 1 },
 	{ 1850, 86, 1, 1 },
@@ -412,10 +409,10 @@ static unsigned int FY_G75Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{ 1176, 48, 2, 1 },
 	{ 1087, 44, 2, 1 },
 	{  998, 39, 2, 1 },
+	{  939, 35, 2, 1 },
 	{  850, 30, 2, 1 },
 
-	/* CCI */
-	{ 1380, 86, 2, 1 },   // OC: 1277→1380MHz, proportional Vproc bump
+/* CCI — Stock: 1277MHz */
 	{ 1277, 78, 2, 1 },
 	{ 1120, 66, 2, 1 },
 	{ 1049, 62, 2, 1 },
@@ -429,18 +426,20 @@ static unsigned int FY_G75Tbl[NR_FREQ * NR_MT_CPU_DVFS][ARRAY_COL_SIZE] = {
 	{  698, 38, 4, 1 },
 	{  663, 36, 4, 1 },
 	{  628, 34, 4, 1 },
+	{  590, 31, 4, 1 },
 	{  558, 29, 4, 1 },
 	{  500, 26, 4, 1 },
 };
 
-unsigned int *xrecordTbl[NUM_CPU_LEVEL] = {	/* v1.1 */
-	[CPU_LEVEL_0] = &FY_6768Tbl[0][0],	/* 6768_v8 */
-	[CPU_LEVEL_1] = &FY_6767Tbl[0][0],	/* 6767_v8 */
-	[CPU_LEVEL_2] = &proTbl[0][0],		/* pro_v8  — PRIMARY GAMING TABLE */
-	[CPU_LEVEL_3] = &FY_6768Tbl_v7[0][0],	/* 6768_v7 */
-	[CPU_LEVEL_4] = &FY_6767Tbl_v7[0][0],	/* 6767_v7 */
-	[CPU_LEVEL_5] = &proTbl_v7[0][0],	/* pro_v7  */
-	[CPU_LEVEL_6] = &FY_G75Tbl[0][0],	/* G75     */
+/* Unified mapping for Level entries */
+unsigned int *xrecordTbl[NUM_CPU_LEVEL] = {
+	[CPU_LEVEL_0] = &FY_6768Tbl[0][0],   /* 6768 Stock */
+	[CPU_LEVEL_1] = &FY_6768Tbl[0][0],   /* 6767 Re-mapped to 6768 Stock */
+	[CPU_LEVEL_2] = &proTbl[0][0],       /* Pro Stock Daily/Gaming */
+	[CPU_LEVEL_3] = &FY_6768Tbl[0][0],   /* v7 re-mapped to stock */
+	[CPU_LEVEL_4] = &FY_6768Tbl[0][0], 
+	[CPU_LEVEL_5] = &proTbl[0][0], 
+	[CPU_LEVEL_6] = &FY_G75Tbl[0][0], 
 };
 
 #ifdef CCI_MAP_TBL_SUPPORT
