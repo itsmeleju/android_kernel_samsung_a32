@@ -6,6 +6,7 @@ on:
     branches:
       - noobie-patches-april
       - github_action
+      - Github_Action-KSU
 
 jobs:
   build:
