@@ -63,15 +63,6 @@ GIT_BIN := /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git
 
 KSU_SRC := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
-LOCAL_GIT_EXISTS := $(shell test -e $(KSU_SRC)/../.git && echo 1 || echo 0)
-
-ifeq ($(LOCAL_GIT_EXISTS),0)
-$(info -- Can't find $(REPO_NAME) git submodule!)
-$(info -- If you are using bazel to build this kernel,)
-$(info -- Please go to Kbuild and change KSU_SRC to the absolute path of the KSU kernel folder.)
-$(error You should use $(REPO_NAME) as a git submodule instead of copying code directly)
-endif
-
 ifdef KBUILD_EXTMOD
 include $(KSU_SRC)/tools/ddk_compatible.mk
 endif
