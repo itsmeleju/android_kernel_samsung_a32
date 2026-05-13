@@ -13,4 +13,9 @@ fs/exec.c.bk
 fs/open.c.bk
 fs/stat.c.bk
 kernel/reboot.c.bk
-
+KernelSU/
+50_add_susfs_in_kernel-4.14.patch
+drivers/kernelsu
+arch/x86/include/asm/set_memory.h.bk
+kernel_noobie_arch.sh
+Noobie_Build.sh
