@@ -1,7 +1,7 @@
 [![Channel](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/noobiethingz)
 [![A32 Kernel Builder by NoobieThingZ](https://github.com/itsmeleju/android_kernel_samsung_a32/actions/workflows/kernel-build.yml/badge.svg)](https://github.com/itsmeleju/android_kernel_samsung_a32/actions/workflows/kernel-build.yml)
 ## ⚡ **AuraX Kernel by NoobieThingZ**
-🚧 𝗖𝘂𝗿𝗿𝗲𝗻𝘁 𝗣𝗿𝗼𝗷𝗲𝗰t on branch [mtk-performa](https://github.com/itsmeleju/android_kernel_samsung_a32/tree/mtk-performa?tab=readme-ov-file)
+🚧 𝗖𝘂𝗿𝗿𝗲𝗻𝘁 𝗣𝗿𝗼𝗷𝗲𝗰t on branch [Common_patches_may](https://github.com/itsmeleju/android_kernel_samsung_a32/tree/Common_patches_may?tab=readme-ov-file)
 
 
 I’m currently working on **✨ AuraX ✨** — a custom kernel focused on:
