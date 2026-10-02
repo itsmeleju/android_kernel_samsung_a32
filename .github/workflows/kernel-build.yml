@@ -1,127 +1,410 @@
-name: A32 Kernel Builder by NoobieThingZ
+name: aurax Builder
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - noobie-patches-april
-      - github_action
-      - Github_Action-KSU
+    inputs:
+      defconfig:
+        description: Kernel defconfig under arch/arm64/configs/
+        required: true
+        default: a32_github_defconfig
+        type: string
+
+      "resukisu/kernelsu Integration":
+        description: Enable ReSukiSU / KernelSU integration
+        required: true
+        default: enabled
+        type: choice
+        options:
+          - enabled
+          - disabled
+
+      nomount_ref:
+        description: NoMount branch/tag/commit
+        required: false
+        default: v2.0.0
+        type: string
+
+      enable_nomount:
+        description: Integrate and enable NoMount
+        required: false
+        default: false
+        type: boolean
+
+      "GPU driver version":
+        description: GPU driver update under defconfig
+        required: true
+        default: r25p
+        type: choice
+        options:
+          - r25p
+          - r32p
+
+      localversion:
+        description: Kernel LOCALVERSION suffix
+        required: true
+        default: -ver.1.03-GA
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Source
+      - name: Checkout aurax
         uses: actions/checkout@v4
         with:
+          repository: itsmeleju/android_kernel_samsung_a32
           fetch-depth: 1
+          submodules: recursive
 
-      - name: 🗄️ Cache Toolchain
-        uses: actions/cache@v4
-        id: cache-clang
-        with:
-          path: clang/
-          # Cache busts only when this workflow file changes
-          key: ${{ runner.os }}-neutron-clang-${{ hashFiles('.github/workflows/kernel-build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-neutron-clang-
-
-      - name: ⚙️ Setup Environment
-        uses: ./.github/actions/setup-clang
-
-      - name: 🔨 Build AuraX
+      - name: Initialize build log
         shell: bash
         run: |
-          # ── Toolchain paths ────────────────────────────────────────────────
+          set -euo pipefail
+          : > build.log
+          {
+            echo "============================================================"
+            echo " aurax Build Log"
+            echo " Build started : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo " Repository    : ${GITHUB_REPOSITORY}"
+            echo " Commit        : ${GITHUB_SHA}"
+            echo " Run number    : ${GITHUB_RUN_NUMBER}"
+            echo "============================================================"
+            echo
+          } >> build.log
+
+      - name: Cleanup runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup
+          sudo apt-get clean
+          echo "[✓] Runner cleanup completed." | tee -a build.log
+
+      - name: Cache Clang
+        uses: actions/cache@v4
+        with:
+          path: clang/
+          key: ${{ runner.os }}-neutron-zyc-clang-v1
+
+      - name: Setup Clang & Environment
+        uses: ./.github/actions/setup-clang
+
+      - name: Collect build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:${CLANG_DIR}/bin:${PATH}"
           TC_DIR="${CLANG_DIR}/bin"
 
-          # System host tools — MUST point to system gcc/ld, never clang's ld
-          SYS_GCC=$(which gcc)
-          SYS_GXX=$(which g++)
-          SYS_LD=$(which ld)
+          {
+            echo "=== Toolchain Info ==="
+            "${TC_DIR}/clang" --version | head -n1
+            "${TC_DIR}/ld.lld" --version | head -n1
+            echo "=== System Info ==="
+            uname -a
+            nproc --all
+            free -h
+            df -h /
+          } | tee -a build.log
 
-          echo "[*] Clang:   $($TC_DIR/clang --version | head -1)"
-          echo "[*] Host GCC: $SYS_GCC"
-          echo "[*] Host LD:  $SYS_LD"
+      - name: Integrate ReSukiSU / KernelSU
+        if: ${{ inputs['resukisu/kernelsu Integration'] == 'enabled' }}
+        uses: ./.github/actions/resuki
+        with:
+          ref: main
 
-          # ── Make arguments ─────────────────────────────────────────────────
-          MAKE_ARGS=(
-            O=out
-            ARCH=arm64
-            SUBARCH=arm64
-
-            # Cross compilation target tools
-            CC="$TC_DIR/clang"
-            LD="$TC_DIR/ld.lld"
-            AR="$TC_DIR/llvm-ar"
-            NM="$TC_DIR/llvm-nm"
-            OBJCOPY="$TC_DIR/llvm-objcopy"
-            OBJDUMP="$TC_DIR/llvm-objdump"
-            STRIP="$TC_DIR/llvm-strip"
-            READELF="$TC_DIR/llvm-readelf"
-            OBJSIZE="$TC_DIR/llvm-size"
-
-            # ⚠️ Host tools MUST be system binaries — this is what fixes .relr.dyn
-            HOSTCC="$SYS_GCC"
-            HOSTCXX="$SYS_GXX"
-            HOSTLD="$SYS_LD"
-            HOSTAR="/usr/bin/ar"
-            HOSTSTRIP="/usr/bin/strip"
-
-            # Cross compile prefixes (binutils wrappers, not clang ld)
-            CROSS_COMPILE="aarch64-linux-gnu-"
-            CROSS_COMPILE_ARM32="arm-linux-gnueabi-"
-            CLANG_TRIPLE="aarch64-linux-gnu-"
-
-            # Use LLVM tools for target, but NOT integrated assembler
-            # (many MTK/Samsung kernels have inline asm incompatible with LLVM IAS-noobie)
-            LLVM=1
-            LLVM_IAS=0
-
-            # Suppress known-harmless warnings as errors
-            KCFLAGS="-w -pipe -O2 -Wno-error"
-            CONFIG_SECTION_MISMATCH_WARN_ONLY=y
-          )
-
-          mkdir -p out
-
-          # ── Configure ──────────────────────────────────────────────────────
-          echo "[*] Configuring with a32_github_defconfig..."
-          make "${MAKE_ARGS[@]}" a32_github_defconfig
-
-          # ── Build ──────────────────────────────────────────────────────────
-          echo "[*] Starting compilation with $(nproc --all) threads..."
-          make -j$(nproc --all) "${MAKE_ARGS[@]}" 2>&1 | tee build.log
-
-          echo "[*] Build complete. Checking for output..."
-          ls -lh out/arch/arm64/boot/ || true
-
-      - name: 📦 Prepare AnyKernel3
+      - name: Configure kernel
+        shell: bash
         run: |
-          # AnyKernel3 is already in the kernel source root
-          # Just copy built kernel files into it
-          cp out/arch/arm64/boot/Image AnyKernel3/ 2>/dev/null || true
-          
-          # Copy DTB files
-          cp out/arch/arm64/boot/dtb AnyKernel3/ 2>/dev/null || true
-          find out/arch/arm64/boot/dts/mediatek/ -name "*.dtb" -exec cp {} AnyKernel3/ \; 2>/dev/null || true
-          
-          # Verify at least one kernel image exists
-          ls AnyKernel3/Image* || { echo "❌ No kernel image found!"; exit 1; }
+          set -euo pipefail
+          export PATH="/usr/bin:${CLANG_DIR}/bin:${PATH}"
+          TC_DIR="${CLANG_DIR}/bin"
+          DEFCONFIG="${{ inputs.defconfig }}"
+          LOCALVERSION="${{ inputs.localversion }}"
 
-      - name: 📦 Build AK3 Zip
+          make \
+            O=out \
+            ARCH=arm64 \
+            SUBARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CC="${TC_DIR}/clang" \
+            LD="${TC_DIR}/ld.lld" \
+            AR="${TC_DIR}/llvm-ar" \
+            NM="${TC_DIR}/llvm-nm" \
+            OBJCOPY="${TC_DIR}/llvm-objcopy" \
+            OBJDUMP="${TC_DIR}/llvm-objdump" \
+            STRIP="${TC_DIR}/llvm-strip" \
+            READELF="${TC_DIR}/llvm-readelf" \
+            LLVM_AR="${TC_DIR}/llvm-ar" \
+            LLVM_DIS="${TC_DIR}/llvm-dis" \
+            HOSTCC=/usr/bin/gcc \
+            HOSTCXX=/usr/bin/g++ \
+            HOSTLD=/usr/bin/ld \
+            HOSTAR=/usr/bin/ar \
+            LLVM=1 \
+            LLVM_IAS=0 \
+            KCFLAGS="-w -pipe -O2 -Wno-error -Wno-error=incompatible-pointer-types" \
+            CONFIG_SECTION_MISMATCH_WARN_ONLY=y \
+            "${DEFCONFIG}" 2>&1 | tee -a build.log
+
+          if [ -n "${LOCALVERSION}" ]; then
+            sed -i '/^CONFIG_LOCALVERSION=/d' out/.config
+            echo "CONFIG_LOCALVERSION=\"${LOCALVERSION}\"" >> out/.config
+          fi
+
+          echo "[✓] Kernel configured." | tee -a build.log
+
+      - name: Configure GPU driver
+        shell: bash
         run: |
+          set -euo pipefail
+          GPU_DRIVER="${{ inputs['GPU driver version'] }}"
+
+          test -f out/.config || { echo "[!] out/.config not found."; exit 1; }
+          [ -x scripts/config ] || chmod +x scripts/config
+
+          case "${GPU_DRIVER}" in
+            r32p)
+              echo "[*] Enabling Mali R32P1 / Valhall" | tee -a build.log
+              scripts/config --file out/.config -d CONFIG_MTK_GPU_MALI_R25P -e CONFIG_MTK_GPU_MALI_R32P --set-str CONFIG_MTK_GPU_VERSION "mali valhall r32p1"
+              ;;
+            r25p)
+              echo "[*] Enabling Mali R25P0 / Bifrost" | tee -a build.log
+              scripts/config --file out/.config -e CONFIG_MTK_GPU_MALI_R25P -d CONFIG_MTK_GPU_MALI_R32P --set-str CONFIG_MTK_GPU_VERSION "mali bifrost r25p0"
+              ;;
+            *)
+              echo "[!] Invalid GPU driver: ${GPU_DRIVER}"
+              exit 1
+              ;;
+          esac
+
+          make O=out ARCH=arm64 olddefconfig 2>&1 | tee -a build.log
+          echo "[✓] GPU configuration completed." | tee -a build.log
+
+      - name: Verify configurations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs['resukisu/kernelsu Integration'] }}" = "enabled" ]; then
+            test -d KernelSU/kernel || { echo "[!] KernelSU/kernel missing."; exit 1; }
+            test -L drivers/kernelsu || { echo "[!] drivers/kernelsu symlink missing."; exit 1; }
+            grep -q '^CONFIG_KSU=y' out/.config || { echo "[!] CONFIG_KSU=y missing in out/.config."; exit 1; }
+            echo "[✓] KernelSU integration verified." | tee -a build.log
+          fi
+
+          if [ "${{ inputs.enable_nomount }}" = "true" ]; then
+            echo "[!] NoMount requested (${{ inputs.nomount_ref }}), but integration logic is missing." | tee -a build.log
+          fi
+
+      - name: Build kernel
+        id: kernel_build
+        shell: bash
+        run: |
+          set -o pipefail
+          export PATH="/usr/bin:${CLANG_DIR}/bin:${PATH}"
+
+          BUILD_START=$(date +%s)
+          TC_DIR="${CLANG_DIR}/bin"
+          JOBS=$(nproc --all)
+
+          make \
+            O=out \
+            ARCH=arm64 \
+            SUBARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CC="${TC_DIR}/clang" \
+            LD="${TC_DIR}/ld.lld" \
+            AR="${TC_DIR}/llvm-ar" \
+            NM="${TC_DIR}/llvm-nm" \
+            OBJCOPY="${TC_DIR}/llvm-objcopy" \
+            OBJDUMP="${TC_DIR}/llvm-objdump" \
+            STRIP="${TC_DIR}/llvm-strip" \
+            READELF="${TC_DIR}/llvm-readelf" \
+            OBJSIZE="${TC_DIR}/llvm-size" \
+            LLVM_AR="${TC_DIR}/llvm-ar" \
+            LLVM_DIS="${TC_DIR}/llvm-dis" \
+            HOSTCC=/usr/bin/gcc \
+            HOSTCXX=/usr/bin/g++ \
+            HOSTLD=/usr/bin/ld \
+            HOSTAR=/usr/bin/ar \
+            LLVM=1 \
+            LLVM_IAS=0 \
+            KCFLAGS="-w -pipe -O2 -Wno-error -Wno-error=incompatible-pointer-types" \
+            CONFIG_SECTION_MISMATCH_WARN_ONLY=y \
+            -j"${JOBS}" 2>&1 | tee -a build.log
+
+          BUILD_END=$(date +%s)
+          BUILD_DURATION=$((BUILD_END - BUILD_START))
+          KERNEL_VERSION="$(make --no-print-directory -s O=out ARCH=arm64 kernelversion)"
+
+          echo "BUILD_DURATION=${BUILD_DURATION}" >> "$GITHUB_ENV"
+          echo "KERNEL_VERSION=${KERNEL_VERSION}" >> "$GITHUB_ENV"
+          echo "[✓] Build finished in ${BUILD_DURATION}s." | tee -a build.log
+
+      - name: Verify kernel outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="out/arch/arm64/boot/Image"
+
+          test -s "$IMAGE" || { echo "[!] Kernel Image missing: ${IMAGE}" | tee -a build.log; exit 1; }
+
+          IMAGE_SIZE="$(du -h "$IMAGE" | cut -f1)"
+          IMAGE_SHA256="$(sha256sum "$IMAGE" | awk '{print $1}')"
+
+          echo "IMAGE_SHA256=${IMAGE_SHA256}" >> "$GITHUB_ENV"
+          echo "[✓] Kernel Image verified (${IMAGE_SIZE}, SHA256:${IMAGE_SHA256})" | tee -a build.log
+
+      - name: Prepare AnyKernel3
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="out/arch/arm64/boot/Image"
+          DTB_DIR="out/arch/arm64/boot/dts/mediatek"
+
+          test -d AnyKernel3 || echo "[!] AnyKernel3 directory missing." | tee -a build.log
+
+          rm -f AnyKernel3/*.zip AnyKernel3/Image AnyKernel3/Image.* AnyKernel3/dtb AnyKernel3/*.dtb
+
+          if [ -f "$IMAGE" ]; then
+            cp "$IMAGE" AnyKernel3/Image
+          fi
+
+          find "$DTB_DIR" -type f -name "*.dtb" -exec cp {} AnyKernel3/ \; 2>/devnull || true
+          echo "[✓] AnyKernel3 prepared." | tee -a build.log
+
+      - name: Build final AnyKernel3 ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          GPU_DRIVER="${{ inputs['GPU driver version'] }}"
+          BUILD_TIME="$(TZ=Asia/Kolkata date +"%d-%m-%H%M")"
+          KERNEL_ZIP="NoobieKernlRE_GA-${GPU_DRIVER}-${BUILD_TIME}.zip"
+
           cd AnyKernel3
-          zip -r9 ../A32-Kernel-AK3.zip . \
-            -x "*.git*" \
-            -x "*.github*" \
-            -x "README.md"
+          zip -r9 "../${KERNEL_ZIP}" . -x "*.git*" -x "*.github*" -x "README.md" -x "*.zip" 2>&1 | tee -a ../build.log
+          cd ..
 
-      - name: 📤 Upload AK3 Zip
+          test -s "${KERNEL_ZIP}" || { echo "[!] Kernel ZIP creation failed." | tee -a build.log; exit 1; }
+
+          ZIP_SHA256="$(sha256sum "${KERNEL_ZIP}" | awk '{print $1}')"
+          echo "KERNEL_ZIP=${KERNEL_ZIP}" >> "$GITHUB_ENV"
+          echo "KERNEL_ZIP_SHA256=${ZIP_SHA256}" >> "$GITHUB_ENV"
+          echo "[✓] Kernel ZIP created: ${KERNEL_ZIP}" | tee -a build.log
+
+      - name: Build diagnostics and summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+          SUMMARY="$GITHUB_STEP_SUMMARY"
+          ERROR_FILE="build-errors.txt"
+          RAW_ERRORS="raw-errors.txt"
+          : > "${ERROR_FILE}"
+          : > "${RAW_ERRORS}"
+
+          # 1. Extract raw errors from build log
+          if [ -f build.log ]; then
+            grep -nEi \
+              '(^|[[:space:]])(error:|fatal error:|llvm error:|undefined reference|ld\.lld: error:|collect2: error:|make(\[[0-9]+\])?: \*\*\*)' \
+              build.log > "${RAW_ERRORS}" || true
+          fi
+
+          # 2. Deduplicate identical error messages across threads
+          awk '!seen[$0]++' "${RAW_ERRORS}" > "${ERROR_FILE}"
+          ERROR_COUNT="$(wc -l < "${ERROR_FILE}" | tr -d ' ')"
+
+          # 3. Create step summary & precise inline annotations
+          if [ "${ERROR_COUNT}" -gt 0 ]; then
+            echo "## ❌ Build Errors (${ERROR_COUNT} unique lines)" >> "${SUMMARY}"
+            echo '```text' >> "${SUMMARY}"
+            head -25 "${ERROR_FILE}" | cut -c1-300 >> "${SUMMARY}"
+            echo '```' >> "${SUMMARY}"
+
+            while IFS= read -r line; do
+              # Extract precise file, line, and column numbers if available
+              if [[ "${line}" =~ ^[0-9]+:(.+):([0-9]+):([0-9]+):[[:space:]](fatal[[:space:]]error:\vert{}error:)(.*)$ ]]; then
+                FILE="${BASH_REMATCH[1]#../}"
+                LINE="${BASH_REMATCH[2]}"
+                COL="${BASH_REMATCH[3]}"
+                MSG="${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
+                echo "::error file=${FILE},line=${LINE},col=${COL},title=Kernel Build Error::${MSG}"
+              else
+                CLEAN_LINE="$(echo "${line}" | sed 's/^[0-9]*://')"
+                echo "::error title=Kernel Build Failure::${CLEAN_LINE}"
+              fi
+            done < <(head -15 "${ERROR_FILE}")
+          else
+            echo "## ✅ No compiler errors detected" >> "${SUMMARY}"
+          fi
+
+          # 4. Append build metadata safely
+          {
+            echo ""
+            echo "### Build Metadata"
+            echo "| Parameter | Value |"
+            echo "|---|---|"
+            echo "| Status | ${{ job.status }} |"
+            echo "| Defconfig | \`${{ inputs.defconfig }}\` |"
+            echo "| GPU Driver | \`${{ inputs['GPU driver version'] }}\` |"
+            echo "| ReSukiSU | \`${{ inputs['resukisu/kernelsu Integration'] }}\` |"
+            echo "| Kernel Version | \`${KERNEL_VERSION:-unknown}\` |"
+            echo "| Duration | \`${BUILD_DURATION:-unknown}s\` |"
+            echo "| Output ZIP | \`${KERNEL_ZIP:-not created}\` |"
+          } >> "${SUMMARY}"
+
+      - name: Upload complete build log
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: A32-Kernel-AK3-${{ github.sha }}
-          path: A32-Kernel-AK3.zip
-#All good noobie
+          name: build-log-${{ github.run_number }}
+          path: |
+            build.log
+            build-errors.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload kernel ZIP
+        if: ${{ success() && hashFiles('NoobieKernlRE_GA-*.zip') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoobieKernlRE-${{ github.run_number }}
+          path: NoobieKernlRE_GA-*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Telegram success report
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+        run: |
+          bash .github/scripts/telegram-report.sh success \
+            "${KERNEL_ZIP:-}" \
+            "${KERNEL_VERSION:-unknown}" \
+            "${BUILD_DURATION:-unknown}" \
+            "${IMAGE_SHA256:-unknown}"
+
+      - name: Telegram failure report
+        if: ${{ failure() && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+        run: |
+          bash .github/scripts/telegram-report.sh failure \
+            "${KERNEL_ZIP:-}" \
+            "${KERNEL_VERSION:-unknown}" \
+            "${BUILD_DURATION:-unknown}" \
+            "${IMAGE_SHA256:-unknown}"
