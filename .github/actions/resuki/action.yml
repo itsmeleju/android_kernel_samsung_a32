@@ -1,0 +1,39 @@
+name: Integrate ReSukiSU
+description: Update and integrate ReSukiSU KernelSU into a legacy/non-GKI kernel tree.
+inputs:
+  ref:
+    description: ReSukiSU branch, tag, or commit to integrate.
+    required: false
+    default: main
+  enable-manual-hook:
+    description: Enable CONFIG_KSU_MANUAL_HOOK for old kernels such as 4.14.
+    required: false
+    default: true
+runs:
+  using: composite
+  steps:
+    - name: Integrate ReSukiSU
+      shell: bash
+      run: |
+        set -euo pipefail
+        test -d drivers || { echo "::error::Kernel tree root expected; drivers/ not found."; exit 1; }
+
+        curl -LSfsS --retry 5 --retry-all-errors \
+          "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" \
+          -o "$RUNNER_TEMP/resukisu-setup.sh"
+        chmod +x "$RUNNER_TEMP/resukisu-setup.sh"
+
+        echo "[ReSukiSU] Integrating ref: ${{ inputs.ref }}"
+        bash "$RUNNER_TEMP/resukisu-setup.sh" "${{ inputs.ref }}"
+
+        test -d KernelSU/kernel || { echo "::error::ReSukiSU integration did not create KernelSU/kernel"; exit 1; }
+        test -L drivers/kernelsu || { echo "::error::ReSukiSU integration did not create drivers/kernelsu symlink"; exit 1; }
+
+        if [[ "${{ inputs.enable-manual-hook }}" == 'true' ]]; then
+          test -f scripts/config || { echo "::error::scripts/config is missing"; exit 1; }
+          scripts/config --file out/.config --enable KSU 2>/dev/null || true
+          scripts/config --file out/.config --enable KSU_MANUAL_HOOK 2>/dev/null || true
+        fi
+
+        echo "[ReSukiSU] Source: $(git -C KernelSU rev-parse HEAD)"
+        echo "[ReSukiSU] Integrated successfully."
